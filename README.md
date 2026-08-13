@@ -47,6 +47,10 @@ pnpm dev
 
 The interface is a static, self-contained presentation of a reproducible local run. Its filters and finding drawer are interactive; the data shown in the UI is explicitly synthetic and kept deterministic for review.
 
+## Public demo
+
+The static interface is published through GitHub Pages at [ibrahimyebdri.github.io/data-quality-observatory](https://ibrahimyebdri.github.io/data-quality-observatory/). Every push to `main` runs the quality workflow and can publish a new Pages artifact after the checks pass.
+
 ## Architecture
 
 ```text
