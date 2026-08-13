@@ -1,0 +1,8 @@
+customer_id,email,country_code,amount,currency,created_at,freshness_status
+C001,amina@example.com,DZ,120.50,DZD,2026-08-13T07:51:00Z,fresh
+C002,karim@example.com,DZ,89.90,DZD,2026-08-13T07:53:00Z,fresh
+C003,amina2@example.com,FR,42.00,EUR,2026-08-13T08:00:00Z,fresh
+C004,ines@example.com,DZ,230.10,EUR,2026-08-13T08:02:00Z,fresh
+C005,walid@example.com,DE,75.35,EUR,2026-08-13T08:04:00Z,fresh
+C006,sara@example.com,CA,18.00,CAD,2026-08-13T08:09:00Z,fresh
+C006,duplicate@example.com,CA,18.00,CAD,2026-08-13T08:09:00Z,fresh
