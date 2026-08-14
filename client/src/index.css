@@ -9,6 +9,16 @@ body { margin: 0; min-width: 320px; overflow-x: hidden; background: #f3f0e9; }
 button { font: inherit; }
 button:focus-visible, a:focus-visible { outline: 2px solid #0c7775; outline-offset: 3px; }
 
+.gateway-shell { min-height: 100vh; display: grid; place-items: center; padding: 28px; background: #242827; background-image: linear-gradient(130deg, rgba(7, 123, 117, .22), transparent 44%), url('/manus-storage/dqo-topography_154311fa.png'); background-position: center, 110% 100%; background-size: auto, 680px; }
+.gateway-card { width: min(680px, 100%); padding: clamp(31px, 7vw, 70px); border: 1px solid rgba(238,234,224,.24); color: #ece8df; background: rgba(36,40,39,.86); box-shadow: 0 24px 70px rgba(0,0,0,.24); }
+.gateway-kicker, .gateway-mark { display: flex; align-items: center; gap: 10px; color: #6cd0c5; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .13em; text-transform: uppercase; }
+.gateway-kicker span { width: 28px; height: 1px; background: currentColor; }.gateway-mark { margin-top: 36px; color: #aeb9b1; font-size: 10px; }
+.gateway-card h1 { max-width: 510px; margin-top: 22px; color: #f3efe6; font-size: clamp(50px, 9vw, 78px); }.gateway-card h1 em { color: #5ec8bc; }
+.gateway-card p { max-width: 520px; margin-top: 23px; color: #b8beb7; font-size: 16px; line-height: 1.7; }
+.gateway-primary { display: inline-flex; align-items: center; gap: 10px; margin-top: 35px; padding: 15px 19px; color: #f5f2eb; background: #0c7775; font-size: 14px; font-weight: 700; text-decoration: none; transition: transform .16s cubic-bezier(.23,1,.32,1), background .18s ease; }.gateway-primary:hover { background: #095e5d; }.gateway-primary:active { transform: scale(.97); }
+.gateway-divider { height: 1px; margin: 35px 0 19px; background: rgba(238,234,224,.18); }.gateway-details { display: flex; flex-wrap: wrap; gap: 16px 22px; color: #a9b2aa; font-family: 'IBM Plex Mono', monospace; font-size: 10px; }.gateway-details span, .gateway-details a { display: inline-flex; align-items: center; gap: 7px; }.gateway-details a { color: #79d3c8; text-decoration: none; }.gateway-details a:hover { text-decoration: underline; text-underline-offset: 4px; }
+@media (max-width: 520px) { .gateway-shell { align-items: start; padding: 22px 16px; }.gateway-card { margin-top: 42px; padding: 32px 27px; }.gateway-card p { font-size: 14px; }.gateway-details { flex-direction: column; gap: 12px; } }
+
 .app-shell { min-height: 100vh; display: flex; background: #f3f0e9; background-image: url('/manus-storage/dqo-paper-texture_9eee50f6.png'); background-size: cover; }
 .evidence-rail { position: sticky; z-index: 10; top: 0; width: 248px; height: 100vh; flex: 0 0 248px; padding: 30px 20px 22px; display: flex; flex-direction: column; color: #eeeae0; background: #242827; background-image: linear-gradient(135deg, rgba(255,255,255,.035), transparent 50%), url('/manus-storage/dqo-topography_154311fa.png'); background-position: center, 120% 100%; background-size: auto, 500px; box-shadow: 10px 0 40px rgba(25,31,30,.08); }
 .rail-brand { display: flex; align-items: center; gap: 11px; padding: 0 6px 38px; border-bottom: 1px solid rgba(239,236,226,.15); }

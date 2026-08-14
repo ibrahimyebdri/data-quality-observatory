@@ -18,7 +18,7 @@ For a junior Data Engineer or Cloud/Data apprentice, a convincing repository sho
 | Quality engine | Evaluates completeness, identifier uniqueness, email validity, date validity and reference-code consistency |
 | Typed API | Uses protected tRPC procedures for workspace data, CSV profiling and notification updates |
 | Persistent history | Stores datasets, runs, per-rule findings and alerts in a relational database |
-| Public interface | Uses GitHub Pages for the frontend and a separately deployed API for the runtime |
+| Public interface | Uses a single-domain Manus workspace for authentication and runtime; GitHub Pages is an accessible project gateway |
 | Tests | Covers the deterministic CSV quality engine, authentication logout contract and build-time type checks |
 
 ## Run the Python profiler
@@ -50,17 +50,19 @@ Sign in, import a CSV with a header row, and the application will create a persi
 
 ## Public demo
 
-The public frontend is published through GitHub Pages at [ibrahimyebdri.github.io/data-quality-observatory](https://ibrahimyebdri.github.io/data-quality-observatory/). It connects to the deployed API at `https://dataqualobs-vhblwvv4.manus.space`. Every push to `main` runs the quality workflow and can publish a new Pages artifact after the checks pass.
+The functional application is available at [Data Quality Observatory — Live Workspace](https://dataqualobs-vhblwvv4.manus.space). It keeps sign-in, CSV upload, quality execution, persistent history and report export on one secure domain.
+
+The [GitHub Pages address](https://ibrahimyebdri.github.io/data-quality-observatory/) is intentionally a concise project gateway: it links visitors to the live workspace and to the [source repository](https://github.com/ibrahimyebdri/data-quality-observatory), without pretending to host a second runtime.
 
 ## Architecture
 
 ```text
-GitHub Pages frontend
-          │ typed tRPC, credentialed CORS
-          ▼
-Full-stack API ───► CSV quality engine ───► datasets, runs, findings, notifications
-          │                    │
-          │                    └──────────────► source CSV object storage
+GitHub Pages gateway ───► Live workspace (single secure Manus origin)
+                                      │
+                                      ▼
+Full-stack application ───► CSV quality engine ───► datasets, runs, findings, notifications
+          │                                  │
+          │                                  └──────────────► source CSV object storage
           ▼
 Evidence Ledger interface ───► persisted reports and run history
 ```

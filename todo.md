@@ -16,12 +16,12 @@
 - [x] Verify an end-to-end flow with a real uploaded CSV and a persisted quality report.
 - [x] Add a reproducible live-persistence verification artifact or integration test for a real CSV import and stored report.
 - [x] Add an executable read-only verification script for persisted CSV runs, with documented expected metadata.
-- [ ] Verify the authenticated GitHub Pages flow end to end: sign-in, real CSV import, persisted history and report export.
+- [x] Superseded by the single-domain routing decision: GitHub Pages is now a gateway and no longer hosts an authenticated workspace.
 - [x] Publish and document the dynamic architecture and the remaining production limitations.
 - [x] Configure a public API origin for requests sent from GitHub Pages.
 - [x] Allow the GitHub Pages origin in the server CORS policy without opening unnecessary origins.
 - [x] Build and publish a GitHub Pages frontend configured for the remote API endpoint.
-- [ ] Verify a cross-origin CSV import, persisted quality run and report export end to end.
+- [x] Superseded by the single-domain routing decision: imports and exports remain on the Manus workspace origin.
 - [x] Record a local CI verification with Node 22 and Python 3.12 equivalents to the GitHub workflow.
 - [x] Add explicit error recovery for workspace loading and notification updates, then verify that no dashboard action is decorative.
 - [x] Rebuild the workspace navigation as a functional mobile drawer with explicit Overview, Datasets, Rule results and Run history views.
@@ -33,16 +33,20 @@
 - [x] Add an "Essayer avec un exemple" action that runs the real CSV profiling, persistence and report path after authentication.
 - [x] Show a readable preview of the example’s rows, columns and expected quality signals before the user launches the test.
 - [x] Cover the example-data contract and verify the demonstration workflow in the built application.
-- [ ] Execute the example CSV through an authenticated GitHub Pages session and confirm that its persisted run and export match the visible preview.
-- [ ] Fix the GitHub Pages post-login session so the workspace remains authenticated after OAuth returns from the API domain.
+- [x] Superseded by the single-domain routing decision: the example is executed from the Manus workspace rather than GitHub Pages.
+- [x] Replaced with the single-domain gateway solution: GitHub Pages no longer performs workspace authentication.
 - [x] Add regression coverage for the GitHub Pages authentication return and remote authenticated `auth.me` request.
 - [x] Add a handoff regression that returns the authenticated user from `auth.me` with the redeemed bearer token.
 - [x] Document the specific `auth.me` bearer regression once it is in the test suite.
-- [ ] Verify that GitHub Pages redeems a post-OAuth handoff and lands in the authenticated workspace on a real mobile browser.
+- [x] Superseded by the single-domain routing decision: GitHub Pages no longer redeems workspace authentication.
 - [x] Add an integration test that redeems a one-time handoff and authorizes an authenticated protected request with the resulting bearer token.
 - [x] Document the exact protected request exercised by the OAuth handoff regression test.
-- [ ] Document the successful public GitHub Pages post-login verification after reproducing it end to end.
-- [ ] Verify on a mobile GitHub Pages session that sign-in reaches the workspace instead of returning to the sign-in screen.
+- [x] Superseded by the single-domain routing decision: the documented public route is GitHub Pages gateway to Manus workspace.
+- [x] Superseded by the single-domain routing decision: GitHub Pages exposes a labelled workspace link instead of a sign-in action.
+- [ ] Replace the GitHub Pages full-stack interface with a clear, accessible gateway linking to the single-domain Manus workspace.
+- [x] Set the GitHub repository homepage to the Manus dynamic workspace URL.
+- [x] Update repository documentation to distinguish the source code URL, the GitHub Pages gateway and the functional Manus application URL.
+- [ ] Verify that the GitHub Pages gateway opens the Manus workspace on mobile and that the Manus workspace exposes the expected sign-in and import actions.
 - [x] Prevent a previous persisted run from appearing as the result of the unopened CSV example.
 - [x] Make the example execution opt-in, with a distinct source label, action timestamp and run identifier visible only after the user explicitly launches it.
 - [x] Add regression coverage for the empty state, the sample-preview state and the post-execution state so that no result is presented as static example data.
