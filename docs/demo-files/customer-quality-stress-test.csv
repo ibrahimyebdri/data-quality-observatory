@@ -1,0 +1,13 @@
+customer_id,full_name,email,signup_date,country_code,currency,account_status
+C-1001,Amina Diallo,amina.diallo@example.com,2026-08-01,FR,EUR,active
+C-1002,,not-an-email,2026-08-02,us,usd,active
+C-1003,Jonas Weber,jonas.weber@example.com,2026-08-03,DE,EUR,active
+C-1003,Jonas Weber Duplicate,jonas.duplicate@example.com,2026-08-04,DE,EUR,pending
+,Maya Chen,maya.chen@example.com,2026-08-05,CN,CNY,active
+C-1005,Karim Bensaid,,not-a-date,MA,MAD,active
+C-1006,Sofia Rossi,sofia.rossi@example.com,2026-08-07,IT,EUR,
+C-1007,Carol Nguyen,carol@example,2026-08-08,VN,VND,active
+C-1008,Noah Smith,noah.smith@example.com,2026-08-09,GB,GBP,active
+C-1009,Ellen Martin,ellen.martin@example.com,2026-08-10,FR,EUR,active
+C-1010,"Ellen, Martin",ellen.martin2@example.com,2026-08-11,USA,USD,active
+C-1011,Diego Santos,diego.santos@example.com,2026-08-12,france,EURO,active

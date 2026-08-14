@@ -36,3 +36,4 @@
 - [x] Add regression coverage for the empty state, the sample-preview state and the post-execution state so that no result is presented as static example data.
 - [x] Add a regression test for the true empty workspace state, with neither a selected run nor persisted history.
 - [x] Add rendered-state coverage proving that preview and unselected-history modes hide metrics, findings and export while an explicitly selected run exposes them.
+- [x] Provide a second CSV test file with inspectable data-quality failures and a short expected-results guide.
