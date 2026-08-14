@@ -17,7 +17,7 @@
 - [x] Publish and document the dynamic architecture and the remaining production limitations.
 - [x] Configure a public API origin for requests sent from GitHub Pages.
 - [x] Allow the GitHub Pages origin in the server CORS policy without opening unnecessary origins.
-- [ ] Build and publish a GitHub Pages frontend configured for the remote API endpoint.
+- [x] Build and publish a GitHub Pages frontend configured for the remote API endpoint.
 - [ ] Verify a cross-origin CSV import, persisted quality run and report export end to end.
 - [x] Record a local CI verification with Node 22 and Python 3.12 equivalents to the GitHub workflow.
 - [x] Add explicit error recovery for workspace loading and notification updates, then verify that no dashboard action is decorative.
@@ -31,3 +31,8 @@
 - [x] Show a readable preview of the example’s rows, columns and expected quality signals before the user launches the test.
 - [x] Cover the example-data contract and verify the demonstration workflow in the built application.
 - [ ] Execute the example CSV through an authenticated GitHub Pages session and confirm that its persisted run and export match the visible preview.
+- [x] Prevent a previous persisted run from appearing as the result of the unopened CSV example.
+- [x] Make the example execution opt-in, with a distinct source label, action timestamp and run identifier visible only after the user explicitly launches it.
+- [x] Add regression coverage for the empty state, the sample-preview state and the post-execution state so that no result is presented as static example data.
+- [x] Add a regression test for the true empty workspace state, with neither a selected run nor persisted history.
+- [x] Add rendered-state coverage proving that preview and unselected-history modes hide metrics, findings and export while an explicitly selected run exposes them.

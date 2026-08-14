@@ -1,9 +1,10 @@
 import { startLogin } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { exampleCsvContent, exampleCsvDownloadUrl, exampleDataset } from "@/lib/exampleDataset";
+import { resolveEvidenceVisibility, resolveRunDisplay, type RunOrigin } from "@/lib/runPresentation";
 import { trpc } from "@/lib/trpc";
 import { type WorkspaceSection, workspaceNavigation } from "@/lib/workspaceNavigation";
-import { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -36,6 +37,11 @@ type Finding = {
   affectedRows: number;
   evaluatedRows: number;
   message: string;
+};
+
+export type HomeTestState = {
+  initialExampleOpen?: boolean;
+  initialRunOrigin?: RunOrigin | null;
 };
 
 const navigationIcons: Record<WorkspaceSection, LucideIcon> = {
@@ -104,13 +110,27 @@ function ExampleDatasetPreview({
   );
 }
 
-export default function Home() {
+export default function Home({ initialExampleOpen = false, initialRunOrigin = null }: HomeTestState = {}) {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const utils = trpc.useUtils();
+  const [filter, setFilter] = useState<"all" | FindingStatus>("all");
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
+  const [notice, setNotice] = useState("");
+  const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const [exampleOpen, setExampleOpen] = useState(initialExampleOpen);
+  const [selectedRunOrigin, setSelectedRunOrigin] = useState<RunOrigin | null>(initialRunOrigin);
+  const pendingRunOrigin = useRef<RunOrigin | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const overview = trpc.quality.overview.useQuery(undefined, { enabled: isAuthenticated });
   const importCsv = trpc.quality.importCsv.useMutation({
     onSuccess: async (result) => {
       await utils.quality.overview.invalidate();
+      const origin = pendingRunOrigin.current ?? "upload";
+      pendingRunOrigin.current = null;
+      setSelectedRunOrigin(origin);
+      setExampleOpen(false);
       setNotice(`Run #${result.runId} persisted: ${result.report.qualityScore}/100 across ${result.report.rowCount.toLocaleString()} rows.`);
     },
     onError: error => setNotice(error.message),
@@ -120,18 +140,12 @@ export default function Home() {
     onError: error => setNotice(`Could not update alert: ${error.message}`),
   });
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [filter, setFilter] = useState<"all" | FindingStatus>("all");
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState("overview");
-  const [notice, setNotice] = useState("");
-  const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
-  const [alertsOpen, setAlertsOpen] = useState(false);
-  const [exampleOpen, setExampleOpen] = useState(false);
-
-  const latest = overview.data?.latest;
+  const storedLatest = overview.data?.latest;
+  const runDisplay = resolveRunDisplay({ selectedOrigin: selectedRunOrigin, examplePreviewOpen: exampleOpen, hasPersistedRun: Boolean(storedLatest) });
+  const evidenceVisibility = resolveEvidenceVisibility(runDisplay);
+  const latest = evidenceVisibility.showMetrics ? storedLatest : undefined;
   const report = latest?.report;
-  const allFindings = (overview.data?.findings ?? []) as Finding[];
+  const allFindings = (latest ? overview.data?.findings : []) as Finding[];
   const visibleFindings = useMemo(
     () => filter === "all" ? allFindings : allFindings.filter(finding => finding.status === filter),
     [allFindings, filter],
@@ -141,6 +155,17 @@ export default function Home() {
   const dimensionScores = report?.dimensionScores ?? { completeness: 0, validity: 0, integrity: 0, freshness: 0, consistency: 0 };
 
   const activeSectionLabel = navItems.find(item => item.target === activeSection)?.label ?? "Overview";
+
+  const emptyRunTitle = runDisplay.state === "example-preview"
+    ? "This is a CSV preview, not a completed run."
+    : runDisplay.state === "awaiting-selection"
+      ? "A persisted run is ready when you choose to inspect it."
+      : "Start with a dataset you can inspect.";
+  const emptyRunCopy = runDisplay.state === "example-preview"
+    ? "Review or download the synthetic rows above. No score, findings or report is shown until you explicitly run the example."
+    : runDisplay.state === "awaiting-selection"
+      ? "A previous run exists in this workspace, but it remains hidden so it cannot be mistaken for the CSV example or a new import."
+      : "Import a CSV with a header row and at least one record. DQO will evaluate completeness, identifiers, dates, emails and reference codes where those fields exist.";
 
   function scrollTo(target: string) {
     setActiveSection(target);
@@ -164,11 +189,19 @@ export default function Home() {
       return;
     }
     const content = await file.text();
+    pendingRunOrigin.current = "upload";
     importCsv.mutate({ fileName: file.name, content });
   }
 
   function runExampleCsv() {
+    pendingRunOrigin.current = "example";
     importCsv.mutate({ fileName: exampleDataset.fileName, content: exampleCsvContent });
+  }
+
+  function openStoredRun() {
+    setExampleOpen(false);
+    setSelectedRunOrigin("history");
+    setNotice("Latest persisted run selected. Its source, run ID and completion time are shown with the evidence.");
   }
 
   function exportLatestReport() {
@@ -218,7 +251,7 @@ export default function Home() {
         </nav>
         <div className="rail-bottom">
           <div className="rail-section-label">Current run</div>
-          {latest ? <div className="run-card"><div className="run-card-top"><span className="live-dot" /> RUN-{String(latest.run.id).padStart(4, "0")}</div><p>{latest.dataset.name}<br />{latest.run.rowsProfiled.toLocaleString()} rows · {latest.run.columnsProfiled} fields</p><div className="run-card-state"><span className="state-check"><Check size={11} /></span>{latest.run.status.toUpperCase()} <span className="run-time">{formatDate(latest.run.completedAt)}</span></div></div> : <div className="run-card"><p>No persisted run yet.<br />Upload a CSV to start.</p></div>}
+          {latest ? <div className="run-card"><div className="run-card-top"><span className="live-dot" /> RUN-{String(latest.run.id).padStart(4, "0")}</div><p>{latest.dataset.name}<br />{latest.run.rowsProfiled.toLocaleString()} rows · {latest.run.columnsProfiled} fields</p><div className="run-card-state"><span className="state-check"><Check size={11} /></span>{latest.run.status.toUpperCase()} <span className="run-time">{formatDate(latest.run.completedAt)}</span></div></div> : storedLatest ? <div className="run-card"><p>Stored run available.<br />It is hidden until selected.</p><button className="rail-open-run" onClick={openStoredRun}>Open latest run</button></div> : <div className="run-card"><p>No persisted run yet.<br />Upload a CSV to start.</p></div>}
           <div className="rail-footnote"><ShieldCheck size={14} />Real CSVs, stored evidence, explicit rules</div>
         </div>
       </aside>
@@ -239,7 +272,7 @@ export default function Home() {
 
         <div className="content-wrap" id="overview">
           <section className="hero-intro">
-            <div><div className="eyebrow"><span className="eyebrow-rule" />{latest ? `Quality run / ${formatDate(latest.run.completedAt)}` : "Workspace ready for a source"}</div><h1>Quality is a claim.<br /><em>Show the check.</em></h1><p className="hero-copy">Upload a real CSV. The application persists the file, executes deterministic rules, writes evidence to the database, and keeps every run available for review.</p></div>
+            <div><div className="eyebrow"><span className="eyebrow-rule" />{latest ? `${runDisplay.eyebrow} / RUN-${String(latest.run.id).padStart(4, "0")} / ${formatDate(latest.run.completedAt)}` : runDisplay.eyebrow}</div><h1>Quality is a claim.<br /><em>Show the check.</em></h1><p className="hero-copy">Upload a real CSV. The application persists the file, executes deterministic rules, writes evidence to the database, and keeps every run available for review.</p></div>
             <div className="hero-actions"><button className="button secondary" disabled={!latest} onClick={exportLatestReport}><Download size={16} />Export report</button><button className="button secondary" onClick={() => setExampleOpen(open => !open)}><Table2 size={16} />{exampleOpen ? "Hide example" : "Example"}</button><button className="button primary" onClick={() => inputRef.current?.click()} disabled={importCsv.isPending}>{importCsv.isPending ? <Loader2 className="spin" size={16} /> : <FileUp size={16} />}{importCsv.isPending ? "Profiling CSV…" : "Import CSV"}</button><input ref={inputRef} className="sr-only" type="file" accept=".csv,text/csv" onChange={event => { handleFile(event.target.files?.[0]); event.currentTarget.value = ""; }} /></div>
           </section>
 
@@ -248,19 +281,20 @@ export default function Home() {
           {overview.isLoading ? <AppLoading /> : overview.isError ? <section className="empty-state"><AlertTriangle size={27} /><div><div className="section-kicker">Workspace unavailable</div><h2>The persisted workspace could not be loaded.</h2><p>{overview.error.message}</p></div><button className="button primary" onClick={() => overview.refetch()}><Activity size={16} />Retry workspace</button></section> : !latest ? <>
             <section className="empty-state" id="source">
               <Table2 size={27} />
-              <div><div className="section-kicker">No data staged</div><h2>Start with a dataset you can inspect.</h2><p>Import a CSV with a header row and at least one record. DQO will evaluate completeness, identifiers, dates, emails and reference codes where those fields exist.</p></div>
-              <div className="empty-actions"><button className="button secondary" onClick={() => setExampleOpen(true)}><Table2 size={16} />View example</button><button className="button primary" onClick={() => inputRef.current?.click()}><FileUp size={16} />Choose CSV</button></div>
+              <div><div className="section-kicker">{runDisplay.state === "example-preview" ? "Example not executed" : "No active run"}</div><h2>{emptyRunTitle}</h2><p>{emptyRunCopy}</p></div>
+              <div className="empty-actions">{storedLatest && !exampleOpen && <button className="button secondary" onClick={openStoredRun}><Layers3 size={16} />Open latest run</button>}<button className="button secondary" onClick={() => setExampleOpen(true)}><Table2 size={16} />View example</button><button className="button primary" onClick={() => inputRef.current?.click()}><FileUp size={16} />Choose CSV</button></div>
             </section>
             <section className="empty-companion" id="findings">
               <div className="section-kicker"><FileCheck2 size={15} />Rule results</div>
-              <h2>No rules have been executed yet.</h2>
-              <p>Importing a CSV will create an auditable run, calculate its quality score and display each passed, review or failed rule here.</p>
-              <button className="text-button" onClick={() => inputRef.current?.click()}>Choose a CSV to generate rule evidence <ArrowUpRight size={15} /></button>
+              <h2>{runDisplay.state === "example-preview" ? "No example result exists yet." : "No active rule result is selected."}</h2>
+              <p>{runDisplay.state === "example-preview" ? "The preview shows input rows and expected signals only. Running it is a separate, explicit action." : "Import a CSV, run the example, or deliberately open the latest stored run to display evidence here."}</p>
+              <button className="text-button" onClick={() => exampleOpen ? runExampleCsv() : inputRef.current?.click()}>{exampleOpen ? "Run this example through real checks" : "Choose a CSV to generate rule evidence"} <ArrowUpRight size={15} /></button>
             </section>
             <section className="history-section" id="history">
               <div className="section-kicker"><Layers3 size={15} />Persistent history</div>
-              <h2>This workspace has no recorded run yet.</h2>
-              <p className="history-empty-copy">Each import creates a persisted record here. The run history is intentionally empty until a real CSV is analysed.</p>
+              <h2>{storedLatest ? "A stored run waits for a deliberate selection." : "This workspace has no recorded run yet."}</h2>
+              <p className="history-empty-copy">{storedLatest ? "The latest persisted run is listed below but not used as the active report until you select it. That keeps historical evidence separate from the unopened example." : "Each import creates a persisted record here. The run history is intentionally empty until a real CSV is analysed."}</p>
+              {storedLatest && <><button className="text-button" onClick={openStoredRun}>Open latest persisted run <ArrowUpRight size={15} /></button><div className="history-list history-list-muted">{(overview.data?.recentRuns ?? []).map(({ run, dataset }) => <div className="history-row" key={run.id}><div><strong>RUN-{String(run.id).padStart(4, "0")}</strong><span>{dataset.name} · {formatDate(run.completedAt)}</span></div><span>{run.rowsProfiled.toLocaleString()} rows</span><strong className={run.qualityScore >= 85 ? "score-good" : "score-risk"}>{run.qualityScore}/100</strong></div>)}</div></>}
             </section>
           </> : <>
             <section className="metric-strip" aria-label="Run summary metrics">
@@ -276,7 +310,7 @@ export default function Home() {
             </section>
 
             <section className="analysis-grid" id="source">
-              <div className="panel source-panel"><div className="panel-header"><div><div className="section-kicker">Persisted source</div><h2>{latest.dataset.name}</h2></div><a className="icon-button" href={latest.dataset.sourceFileUrl} target="_blank" rel="noreferrer" aria-label="Open stored CSV"><Download size={19} /></a></div><div className="source-topline"><div className="source-icon"><Table2 size={19} /></div><div><strong>{latest.dataset.name}.csv</strong><span>S3 object · persisted with this run</span></div><span className="source-state"><Check size={13} /> Profiled</span></div><div className="source-meta"><span><small>Schema</small>{latest.run.columnsProfiled} fields</span><span><small>Rows</small>{latest.run.rowsProfiled.toLocaleString()}</span><span><small>Imported</small>{formatDate(latest.dataset.createdAt)}</span></div></div>
+              <div className="panel source-panel"><div className="panel-header"><div><div className="section-kicker">Persisted source</div><h2>{latest.dataset.name}</h2></div><a className="icon-button" href={latest.dataset.sourceFileUrl} target="_blank" rel="noreferrer" aria-label="Open stored CSV"><Download size={19} /></a></div><div className="source-topline"><div className="source-icon"><Table2 size={19} /></div><div><strong>{latest.dataset.name}.csv</strong><span>S3 object · persisted with this run</span></div><span className="source-state"><Check size={13} /> {runDisplay.sourceLabel} · RUN-{String(latest.run.id).padStart(4, "0")}</span></div><div className="source-meta"><span><small>Schema</small>{latest.run.columnsProfiled} fields</span><span><small>Rows</small>{latest.run.rowsProfiled.toLocaleString()}</span><span><small>Completed</small>{formatDate(latest.run.completedAt)}</span></div></div>
               <div className="panel notes-panel"><div className="panel-header"><div><div className="section-kicker">Run notes</div><h2>What the engine found</h2></div><span className="note-count">{actionableCount}</span></div>{allFindings.filter(finding => finding.status !== "passed").slice(0, 3).map((finding, index) => <div className="note-item" key={finding.id}><span className={`note-index ${finding.status === "failed" ? "rust" : ""}`}>{String(index + 1).padStart(2, "0")}</span><div><strong>{finding.ruleName}</strong><p>{finding.message}</p></div></div>)}{actionableCount === 0 && <div className="note-item"><span className="note-index">01</span><div><strong>No actionable findings</strong><p>All executed rules passed against the imported source.</p></div></div>}<button className="text-button" onClick={() => scrollTo("findings")}>Open rule evidence <ArrowUpRight size={15} /></button></div>
             </section>
 

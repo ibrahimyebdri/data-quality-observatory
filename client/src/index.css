@@ -32,6 +32,8 @@ button:focus-visible, a:focus-visible { outline: 2px solid #0c7775; outline-offs
 .run-time { color: #70c1b7; font-family: 'IBM Plex Mono', monospace; font-size: 9px; }
 .live-dot { width: 7px; height: 7px; display: inline-block; border-radius: 50%; background: #63c5b3; box-shadow: 0 0 0 3px rgba(99,197,179,.14); }
 .rail-footnote { display: flex; gap: 7px; align-items: center; margin: 20px 4px 0; color: #7f8881; font-size: 10px; line-height: 1.45; }
+.rail-open-run { margin: 0 15px 15px; padding: 0; border: 0; color: #70c1b7; background: transparent; font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-align: left; cursor: pointer; }
+.rail-open-run:hover { text-decoration: underline; text-underline-offset: 3px; }
 .main-canvas { width: calc(100% - 248px); min-width: 0; }
 .topbar { height: 72px; display: flex; align-items: center; justify-content: space-between; padding: 0 54px; border-bottom: 1px solid #d8d4ca; background: rgba(243,240,233,.72); backdrop-filter: blur(14px); }
 .topbar-left { display: flex; align-items: center; gap: 28px; }
