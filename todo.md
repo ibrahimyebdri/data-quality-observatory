@@ -1,11 +1,23 @@
 # GitHub Actions troubleshooting
 
-- [ ] Inspect the failed workflow run and identify the first failing step.
-- [ ] Reproduce the failure locally with the same Python and Node versions.
-- [ ] Correct the workflow configuration without weakening the quality checks.
-- [ ] Run Python tests, profiler assertions, TypeScript checks and the frontend build.
-- [ ] Push the CI correction to GitHub and trigger a fresh workflow run.
-- [ ] Confirm the new GitHub Actions result and document any remaining warning.
-- [ ] Configure the repository for GitHub Pages with the Actions deployment source.
-- [ ] Verify the public Pages URL and attach it to the repository homepage metadata.
+- [x] Inspect the failed workflow run and identify the first failing step.
+- [x] Reproduce the failure locally with the same Python and Node versions.
+- [x] Correct the workflow configuration without weakening the quality checks.
+- [x] Run Python tests, profiler assertions, TypeScript checks and the frontend build.
+- [x] Push the CI correction to GitHub and trigger a fresh workflow run.
+- [x] Confirm the new GitHub Actions result and document any remaining warning.
+- [x] Configure the repository for GitHub Pages with the Actions deployment source.
+- [x] Verify the public Pages URL and attach it to the repository homepage metadata.
 - [ ] Prepare a short, recruiter-oriented demo script for a possible YouTube video.
+- [x] Upgrade the project from static frontend to the full-stack template.
+- [x] Define persistent tables for datasets, quality rules, runs, findings and notifications.
+- [x] Implement typed backend procedures for upload, profiling, rule execution and run history.
+- [x] Connect every dashboard action to real queries or mutations with loading and error states.
+- [ ] Verify an end-to-end flow with a real uploaded CSV and a persisted quality report.
+- [ ] Publish and document the dynamic architecture and the remaining production limitations.
+- [x] Configure a public API origin for requests sent from GitHub Pages.
+- [x] Allow the GitHub Pages origin in the server CORS policy without opening unnecessary origins.
+- [ ] Build and publish a GitHub Pages frontend configured for the remote API endpoint.
+- [ ] Verify a cross-origin CSV import, persisted quality run and report export end to end.
+- [x] Record a local CI verification with Node 22 and Python 3.12 equivalents to the GitHub workflow.
+- [x] Add explicit error recovery for workspace loading and notification updates, then verify that no dashboard action is decorative.

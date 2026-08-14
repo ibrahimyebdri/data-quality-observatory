@@ -1,87 +1,159 @@
-/**
- * Evidence Ledger page: an asymmetric observability workspace where every metric
- * is paired with a source, a rule and an explicit next action.
- */
-import { useMemo, useState } from "react";
+import { startLogin } from "@/const";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import { useMemo, useRef, useState } from "react";
 import {
   Activity,
+  AlertTriangle,
   ArrowUpRight,
-  BarChart3,
+  Bell,
   Check,
   ChevronDown,
-  CircleHelp,
   Database,
   Download,
   FileCheck2,
+  FileUp,
   Filter,
   Layers3,
+  Loader2,
   Menu,
-  MoreHorizontal,
-  Search,
   ShieldCheck,
-  Sparkles,
   Table2,
   X,
 } from "lucide-react";
 
-type FindingStatus = "Passed" | "Review" | "Failed";
-
+type FindingStatus = "passed" | "review" | "failed";
 type Finding = {
-  id: string;
-  rule: string;
-  field: string;
+  id: number;
+  ruleCode: string;
+  ruleName: string;
+  dimension: string;
   status: FindingStatus;
-  impact: string;
-  rows: string;
-  owner: string;
+  fieldName: string;
+  affectedRows: number;
+  evaluatedRows: number;
+  message: string;
 };
 
-const findings: Finding[] = [
-  { id: "DQ-001", rule: "Primary key uniqueness", field: "customer_id", status: "Passed", impact: "No duplicates", rows: "18,420 / 18,420", owner: "Integrity" },
-  { id: "DQ-014", rule: "Email format", field: "email", status: "Review", impact: "62 malformed", rows: "18,358 / 18,420", owner: "Validity" },
-  { id: "DQ-022", rule: "Country coverage", field: "country_code", status: "Passed", impact: "100% populated", rows: "18,420 / 18,420", owner: "Completeness" },
-  { id: "DQ-031", rule: "Order date freshness", field: "created_at", status: "Failed", impact: "19h behind SLA", rows: "17,908 / 18,420", owner: "Freshness" },
-  { id: "DQ-044", rule: "Currency normalisation", field: "currency", status: "Review", impact: "3 unmapped codes", rows: "18,417 / 18,420", owner: "Consistency" },
-];
-
 const navItems = [
-  { label: "Overview", icon: Activity, active: true },
-  { label: "Datasets", icon: Database },
-  { label: "Rule sets", icon: FileCheck2 },
-  { label: "Runs", icon: Layers3 },
+  { label: "Overview", icon: Activity, target: "overview" },
+  { label: "Datasets", icon: Database, target: "source" },
+  { label: "Rule results", icon: FileCheck2, target: "findings" },
+  { label: "Run history", icon: Layers3, target: "history" },
 ];
 
-function StatusBadge({ status }: { status: FindingStatus }) {
-  const className = status.toLowerCase();
-  return <span className={`status-badge ${className}`}><span className="status-dot" />{status}</span>;
+function titleCase(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function QualityDial() {
+function formatDate(value: Date | string) {
+  return new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+function formatDuration(durationMs: number) {
+  return durationMs < 1000 ? `${durationMs} ms` : `${(durationMs / 1000).toFixed(2)} s`;
+}
+
+function StatusBadge({ status }: { status: FindingStatus }) {
+  return <span className={`status-badge ${status}`}><span className="status-dot" />{titleCase(status)}</span>;
+}
+
+function QualityDial({ score }: { score: number }) {
+  const dashOffset = 301.6 - 301.6 * (score / 100);
   return (
-    <div className="quality-dial" aria-label="Overall quality score 94.8 percent">
+    <div className="quality-dial" aria-label={`Overall quality score ${score} percent`}>
       <svg viewBox="0 0 120 120" role="img" aria-hidden="true">
         <circle className="dial-track" cx="60" cy="60" r="48" />
-        <circle className="dial-value" cx="60" cy="60" r="48" />
+        <circle className="dial-value" cx="60" cy="60" r="48" style={{ strokeDashoffset: dashOffset }} />
       </svg>
-      <div className="dial-copy"><strong>94.8</strong><span>/ 100</span></div>
+      <div className="dial-copy"><strong>{score}</strong><span>/ 100</span></div>
     </div>
   );
 }
 
+function AppLoading() {
+  return <div className="app-loading"><Loader2 className="spin" size={24} /><span>Opening the quality workspace…</span></div>;
+}
+
 export default function Home() {
-  const [filter, setFilter] = useState<"All" | FindingStatus>("All");
+  const { user, loading, isAuthenticated, logout } = useAuth();
+  const utils = trpc.useUtils();
+  const overview = trpc.quality.overview.useQuery(undefined, { enabled: isAuthenticated });
+  const importCsv = trpc.quality.importCsv.useMutation({
+    onSuccess: async (result) => {
+      await utils.quality.overview.invalidate();
+      setNotice(`Run #${result.runId} persisted: ${result.report.qualityScore}/100 across ${result.report.rowCount.toLocaleString()} rows.`);
+    },
+    onError: error => setNotice(error.message),
+  });
+  const markRead = trpc.quality.markNotificationRead.useMutation({
+    onSuccess: () => utils.quality.overview.invalidate(),
+    onError: error => setNotice(`Could not update alert: ${error.message}`),
+  });
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [filter, setFilter] = useState<"all" | FindingStatus>("all");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
+  const [alertsOpen, setAlertsOpen] = useState(false);
 
+  const latest = overview.data?.latest;
+  const report = latest?.report;
+  const allFindings = (overview.data?.findings ?? []) as Finding[];
   const visibleFindings = useMemo(
-    () => filter === "All" ? findings : findings.filter((finding) => finding.status === filter),
-    [filter],
+    () => filter === "all" ? allFindings : allFindings.filter(finding => finding.status === filter),
+    [allFindings, filter],
   );
+  const actionableCount = allFindings.filter(finding => finding.status !== "passed").length;
+  const unreadCount = overview.data?.notifications.filter(notification => !notification.isRead).length ?? 0;
+  const dimensionScores = report?.dimensionScores ?? { completeness: 0, validity: 0, integrity: 0, freshness: 0, consistency: 0 };
 
-  function announce(message: string) {
-    setNotice(message);
-    window.setTimeout(() => setNotice(""), 2800);
+  function scrollTo(target: string) {
+    setMobileOpen(false);
+    document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function handleFile(file: File | undefined) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setNotice("Choose a .csv file. XLSX and JSON are not supported in this version.");
+      return;
+    }
+    if (file.size > 2_000_000) {
+      setNotice("This portfolio version accepts CSV files up to 2 MB.");
+      return;
+    }
+    const content = await file.text();
+    importCsv.mutate({ fileName: file.name, content });
+  }
+
+  function exportLatestReport() {
+    if (!latest || !report) return;
+    const document = { exportedAt: new Date().toISOString(), run: latest.run, dataset: latest.dataset, report, findings: allFindings };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(document, null, 2)], { type: "application/json" }));
+    const anchor = window.document.createElement("a");
+    anchor.href = url;
+    anchor.download = `dqo-run-${latest.run.id}-report.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  if (loading) return <AppLoading />;
+
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="signed-out-shell">
+        <div className="signed-out-ledger"><span>DQO / SECURE WORKSPACE</span><span>CSV PROFILING · RULE EXECUTION · RUN HISTORY</span></div>
+        <main className="signed-out-card">
+          <div className="section-kicker"><ShieldCheck size={15} />Data quality, with evidence</div>
+          <h1>Bring the dataset.<br /><em>We show the checks.</em></h1>
+          <p>Sign in to upload a CSV, persist it securely, execute deterministic quality rules, and keep an auditable history of every run.</p>
+          <button className="button primary" onClick={() => startLogin()}>Sign in to the workspace <ArrowUpRight size={16} /></button>
+          <div className="signed-out-proof"><span><Check size={13} />CSV ingestion</span><span><Check size={13} />Persistent findings</span><span><Check size={13} />Downloadable reports</span></div>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -94,57 +166,67 @@ export default function Home() {
         </div>
         <div className="rail-section-label">Workspace</div>
         <nav aria-label="Workspace navigation">
-          {navItems.map(({ label, icon: Icon, active }) => (
-            <button className={`rail-link ${active ? "active" : ""}`} key={label} onClick={() => announce(`${label} view is represented in this demo run.`)}>
-              <Icon size={17} strokeWidth={1.8} /><span>{label}</span>{active && <span className="rail-active-line" />}
+          {navItems.map(({ label, icon: Icon, target }) => (
+            <button className={`rail-link ${target === "overview" ? "active" : ""}`} key={label} onClick={() => scrollTo(target)}>
+              <Icon size={17} strokeWidth={1.8} /><span>{label}</span>{target === "overview" && <span className="rail-active-line" />}
             </button>
           ))}
         </nav>
         <div className="rail-bottom">
           <div className="rail-section-label">Current run</div>
-          <div className="run-card"><div className="run-card-top"><span className="live-dot" /> RUN-2026-0813</div><p>Customer transactions<br />Synthetic source · 18.4k rows</p><div className="run-card-state"><span className="state-check"><Check size={11} /></span>VALIDATED <span className="run-time">08:42 UTC</span></div></div>
-          <div className="rail-footnote"><ShieldCheck size={14} />Built as an open engineering case study</div>
+          {latest ? <div className="run-card"><div className="run-card-top"><span className="live-dot" /> RUN-{String(latest.run.id).padStart(4, "0")}</div><p>{latest.dataset.name}<br />{latest.run.rowsProfiled.toLocaleString()} rows · {latest.run.columnsProfiled} fields</p><div className="run-card-state"><span className="state-check"><Check size={11} /></span>{latest.run.status.toUpperCase()} <span className="run-time">{formatDate(latest.run.completedAt)}</span></div></div> : <div className="run-card"><p>No persisted run yet.<br />Upload a CSV to start.</p></div>}
+          <div className="rail-footnote"><ShieldCheck size={14} />Real CSVs, stored evidence, explicit rules</div>
         </div>
       </aside>
 
       <main className="main-canvas">
         <header className="topbar">
           <button className="mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu size={21} /></button>
-          <div className="topbar-left"><div className="top-brand"><img className="top-brand-image" src="/manus-storage/dqo-mark_eed61913.png" alt="" aria-hidden="true" /><span><strong>DQ<span>O</span></strong><small>Observatory</small></span></div><div className="breadcrumb"><span>Observatory</span><ChevronDown size={14} /><strong>Overview</strong></div></div>
-          <div className="top-actions"><span className="environment"><span className="live-dot" />Synthetic / local</span><button className="icon-button" onClick={() => announce("No new alerts in this demonstration run.")} aria-label="View alerts"><CircleHelp size={18} /></button><button className="avatar">IY</button></div>
+          <div className="topbar-left"><div className="top-brand"><img className="top-brand-image" src="/manus-storage/dqo-mark_eed61913.png" alt="" aria-hidden="true" /><span><strong>DQ<span>O</span></strong><small>Observatory</small></span></div><div className="breadcrumb"><span>Workspace</span><ChevronDown size={14} /><strong>Overview</strong></div></div>
+          <div className="top-actions">
+            <span className="environment"><span className="live-dot" />Persistent workspace</span>
+            <div className="alert-anchor"><button className="icon-button" onClick={() => setAlertsOpen(open => !open)} aria-label="View quality alerts"><Bell size={18} />{unreadCount > 0 && <span className="alert-count">{unreadCount}</span>}</button>
+              {alertsOpen && <div className="alert-popover"><div className="popover-heading">Run alerts</div>{(overview.data?.notifications ?? []).length === 0 ? <p>No run alerts yet.</p> : overview.data?.notifications.map(notification => <button key={notification.id} onClick={() => markRead.mutate({ notificationId: notification.id })} className={notification.isRead ? "notification read" : "notification"}><strong>{notification.title}</strong><span>{notification.body}</span><small>{formatDate(notification.createdAt)}</small></button>)}</div>}
+            </div>
+            <button className="avatar" onClick={() => logout()} title="Sign out">{user.name?.slice(0, 2).toUpperCase() || "DQ"}</button>
+          </div>
         </header>
 
-        <div className="content-wrap">
+        <div className="content-wrap" id="overview">
           <section className="hero-intro">
-            <div><div className="eyebrow"><span className="eyebrow-rule" />Quality run / 13 August 2026</div><h1>Quality is a claim.<br /><em>Show the check.</em></h1><p className="hero-copy">A defensible view of data health, built around evidence instead of decorative metrics.</p></div>
-            <div className="hero-actions"><button className="button secondary" onClick={() => announce("Report export queued — this static demo keeps exports local.")}><Download size={16} />Export report</button><button className="button primary" onClick={() => document.getElementById("findings")?.scrollIntoView({ behavior: "smooth" })}>Inspect findings <ArrowUpRight size={16} /></button></div>
+            <div><div className="eyebrow"><span className="eyebrow-rule" />{latest ? `Quality run / ${formatDate(latest.run.completedAt)}` : "Workspace ready for a source"}</div><h1>Quality is a claim.<br /><em>Show the check.</em></h1><p className="hero-copy">Upload a real CSV. The application persists the file, executes deterministic rules, writes evidence to the database, and keeps every run available for review.</p></div>
+            <div className="hero-actions"><button className="button secondary" disabled={!latest} onClick={exportLatestReport}><Download size={16} />Export report</button><button className="button primary" onClick={() => inputRef.current?.click()} disabled={importCsv.isPending}>{importCsv.isPending ? <Loader2 className="spin" size={16} /> : <FileUp size={16} />}{importCsv.isPending ? "Profiling CSV…" : "Import CSV"}</button><input ref={inputRef} className="sr-only" type="file" accept=".csv,text/csv" onChange={event => { handleFile(event.target.files?.[0]); event.currentTarget.value = ""; }} /></div>
           </section>
 
-          <section className="metric-strip" aria-label="Run summary metrics">
-            <div className="metric-card"><span className="metric-label">Rows profiled</span><strong>18,420</strong><span className="metric-meta positive"><ArrowUpRight size={13} />+4.6% from last run</span></div>
-            <div className="metric-card"><span className="metric-label">Rules evaluated</span><strong>32 <small>/ 32</small></strong><span className="metric-meta">Across 5 dimensions</span></div>
-            <div className="metric-card"><span className="metric-label">Critical findings</span><strong className="accent-rust">01</strong><span className="metric-meta warning">Requires owner review</span></div>
-            <div className="metric-card"><span className="metric-label">Run duration</span><strong>02:14</strong><span className="metric-meta">Spark local / 4 workers</span></div>
-          </section>
+          {overview.isLoading ? <AppLoading /> : overview.isError ? <section className="empty-state"><AlertTriangle size={27} /><div><div className="section-kicker">Workspace unavailable</div><h2>The persisted workspace could not be loaded.</h2><p>{overview.error.message}</p></div><button className="button primary" onClick={() => overview.refetch()}><Activity size={16} />Retry workspace</button></section> : !latest ? <section className="empty-state"><Table2 size={27} /><div><div className="section-kicker">No data staged</div><h2>Start with a dataset you can inspect.</h2><p>Import a CSV with a header row and at least one record. DQO will evaluate completeness, identifiers, dates, emails and reference codes where those fields exist.</p></div><button className="button primary" onClick={() => inputRef.current?.click()}><FileUp size={16} />Choose CSV</button></section> : <>
+            <section className="metric-strip" aria-label="Run summary metrics">
+              <div className="metric-card"><span className="metric-label">Rows profiled</span><strong>{latest.run.rowsProfiled.toLocaleString()}</strong><span className="metric-meta positive"><Check size={13} />Stored source and report</span></div>
+              <div className="metric-card"><span className="metric-label">Rules evaluated</span><strong>{allFindings.length} <small>/ {allFindings.length}</small></strong><span className="metric-meta">Across detected dimensions</span></div>
+              <div className="metric-card"><span className="metric-label">Open findings</span><strong className={actionableCount > 0 ? "accent-rust" : ""}>{String(actionableCount).padStart(2, "0")}</strong><span className={`metric-meta ${actionableCount > 0 ? "warning" : "positive"}`}>{actionableCount > 0 ? "Needs review" : "No action required"}</span></div>
+              <div className="metric-card"><span className="metric-label">Run duration</span><strong>{formatDuration(latest.run.durationMs)}</strong><span className="metric-meta">Measured end to end</span></div>
+            </section>
 
-          <section className="signal-panel">
-            <div className="signal-visual"><div className="section-kicker"><Sparkles size={15} />Composite signal</div><div className="signal-score"><QualityDial /><div><h2>Healthy with<br /><span>two open threads.</span></h2><p>Score is calculated from completeness, validity, freshness, consistency and integrity.</p></div></div><button className="text-button" onClick={() => announce("Score explanation: weighted dimensions, with freshness and validity currently reducing the result.")}>Why this score? <ArrowUpRight size={15} /></button></div>
-            <div className="signal-breakdown"><div className="breakdown-head"><span>Dimension</span><span>Score</span></div>{[{ name: "Completeness", score: 99, color: "teal" }, { name: "Validity", score: 91, color: "rust" }, { name: "Freshness", score: 88, color: "rust" }, { name: "Consistency", score: 96, color: "teal" }, { name: "Integrity", score: 100, color: "teal" }].map((item) => <div className="breakdown-row" key={item.name}><span>{item.name}</span><div className="bar-track"><span className={`bar-fill ${item.color}`} style={{ width: `${item.score}%` }} /></div><strong>{item.score}</strong></div>)}</div>
-          </section>
+            <section className="signal-panel">
+              <div className="signal-visual"><div className="section-kicker"><Activity size={15} />Composite signal</div><div className="signal-score"><QualityDial score={latest.run.qualityScore} /><div><h2>{latest.run.qualityScore >= 85 ? "Healthy with" : "Review before"}<br /><span>{latest.run.qualityScore >= 85 ? "visible evidence." : "you rely on it."}</span></h2><p>The score is calculated from rules executed against this imported file. No score is shown until a real run exists.</p></div></div><button className="text-button" onClick={() => scrollTo("findings")}>Inspect rule evidence <ArrowUpRight size={15} /></button></div>
+              <div className="signal-breakdown"><div className="breakdown-head"><span>Dimension</span><span>Score</span></div>{Object.entries(dimensionScores).map(([name, score]) => <div className="breakdown-row" key={name}><span>{titleCase(name)}</span><div className="bar-track"><span className={`bar-fill ${score >= 85 ? "teal" : "rust"}`} style={{ width: `${score}%` }} /></div><strong>{score}</strong></div>)}</div>
+            </section>
 
-          <section className="analysis-grid">
-            <div className="panel source-panel"><div className="panel-header"><div><div className="section-kicker">Source profile</div><h2>Customer transactions</h2></div><button className="icon-button" onClick={() => announce("Source metadata is available in the run manifest.")} aria-label="More source options"><MoreHorizontal size={19} /></button></div><div className="source-topline"><div className="source-icon"><Table2 size={19} /></div><div><strong>transactions_v4.parquet</strong><span>warehouse / customer-domain</span></div><span className="source-state"><Check size={13} /> Validated</span></div><div className="sparkline-wrap"><div className="sparkline-label"><span>Row volume / last 7 runs</span><strong>18.4k <small>+4.6%</small></strong></div><svg className="sparkline" viewBox="0 0 460 96" preserveAspectRatio="none" role="img" aria-label="Row volume trend increasing"><path className="spark-area" d="M0,79 C45,75 62,68 93,71 S145,55 181,61 S228,44 264,50 S305,37 335,41 S382,24 412,30 S445,16 460,19 L460,96 L0,96Z" /><path className="spark-line" d="M0,79 C45,75 62,68 93,71 S145,55 181,61 S228,44 264,50 S305,37 335,41 S382,24 412,30 S445,16 460,19" /></svg><div className="sparkline-axis"><span>08/07</span><span>08/09</span><span>08/11</span><span>08/13</span></div></div><div className="source-meta"><span><small>Schema</small>24 fields</span><span><small>Partition</small>daily</span><span><small>Freshness SLA</small>06 hours</span></div></div>
-            <div className="panel notes-panel"><div className="panel-header"><div><div className="section-kicker">Run notes</div><h2>What changed</h2></div><span className="note-count">03</span></div><div className="note-item"><span className="note-index">01</span><div><strong>Volume increased</strong><p>+812 rows since the previous run. Within expected weekly range.</p></div></div><div className="note-item"><span className="note-index rust">02</span><div><strong>Freshness breached</strong><p>Source landed 19h after SLA. Confirm upstream scheduling.</p></div></div><div className="note-item"><span className="note-index">03</span><div><strong>Schema unchanged</strong><p>No additions, removals or type drift detected.</p></div></div><button className="text-button" onClick={() => announce("Run manifest opened in the full project version.")}>Open run manifest <ArrowUpRight size={15} /></button></div>
-          </section>
+            <section className="analysis-grid" id="source">
+              <div className="panel source-panel"><div className="panel-header"><div><div className="section-kicker">Persisted source</div><h2>{latest.dataset.name}</h2></div><a className="icon-button" href={latest.dataset.sourceFileUrl} target="_blank" rel="noreferrer" aria-label="Open stored CSV"><Download size={19} /></a></div><div className="source-topline"><div className="source-icon"><Table2 size={19} /></div><div><strong>{latest.dataset.name}.csv</strong><span>S3 object · persisted with this run</span></div><span className="source-state"><Check size={13} /> Profiled</span></div><div className="source-meta"><span><small>Schema</small>{latest.run.columnsProfiled} fields</span><span><small>Rows</small>{latest.run.rowsProfiled.toLocaleString()}</span><span><small>Imported</small>{formatDate(latest.dataset.createdAt)}</span></div></div>
+              <div className="panel notes-panel"><div className="panel-header"><div><div className="section-kicker">Run notes</div><h2>What the engine found</h2></div><span className="note-count">{actionableCount}</span></div>{allFindings.filter(finding => finding.status !== "passed").slice(0, 3).map((finding, index) => <div className="note-item" key={finding.id}><span className={`note-index ${finding.status === "failed" ? "rust" : ""}`}>{String(index + 1).padStart(2, "0")}</span><div><strong>{finding.ruleName}</strong><p>{finding.message}</p></div></div>)}{actionableCount === 0 && <div className="note-item"><span className="note-index">01</span><div><strong>No actionable findings</strong><p>All executed rules passed against the imported source.</p></div></div>}<button className="text-button" onClick={() => scrollTo("findings")}>Open rule evidence <ArrowUpRight size={15} /></button></div>
+            </section>
 
-          <section className="findings-section" id="findings"><div className="findings-heading"><div><div className="section-kicker"><FileCheck2 size={15} />Rule evaluation</div><h2>Findings that deserve attention</h2><p>Every result maps to a rule, a field and a recommended owner.</p></div><div className="filter-control"><Filter size={15} />{(["All", "Passed", "Review", "Failed"] as const).map((item) => <button key={item} className={filter === item ? "selected" : ""} onClick={() => setFilter(item)}>{item}</button>)}</div></div><div className="findings-table"><div className="table-row table-head"><span>Rule / field</span><span>Status</span><span>Impact</span><span>Rows evaluated</span><span>Owner</span><span /></div>{visibleFindings.map((finding) => <button className="table-row table-data" key={finding.id} onClick={() => setSelectedFinding(finding)}><span><strong>{finding.rule}</strong><small>{finding.id} · {finding.field}</small></span><StatusBadge status={finding.status} /><span>{finding.impact}</span><span className="tabular">{finding.rows}</span><span className="owner-tag">{finding.owner}</span><ArrowUpRight size={16} /></button>)}</div></section>
+            <section className="findings-section" id="findings"><div className="findings-heading"><div><div className="section-kicker"><FileCheck2 size={15} />Rule evaluation</div><h2>Findings that deserve attention</h2><p>Every row is stored with the run and points to a concrete rule, field and measured impact.</p></div><div className="filter-control"><Filter size={15} />{(["all", "passed", "review", "failed"] as const).map(item => <button key={item} className={filter === item ? "selected" : ""} onClick={() => setFilter(item)}>{titleCase(item)}</button>)}</div></div><div className="findings-table"><div className="table-row table-head"><span>Rule / field</span><span>Status</span><span>Impact</span><span>Rows evaluated</span><span>Dimension</span><span /></div>{visibleFindings.map(finding => <button className="table-row table-data" key={finding.id} onClick={() => setSelectedFinding(finding)}><span><strong>{finding.ruleName}</strong><small>{finding.ruleCode} · {finding.fieldName}</small></span><StatusBadge status={finding.status} /><span>{finding.affectedRows === 0 ? "No affected rows" : `${finding.affectedRows.toLocaleString()} affected`}</span><span className="tabular">{finding.evaluatedRows.toLocaleString()}</span><span className="owner-tag">{titleCase(finding.dimension)}</span><ArrowUpRight size={16} /></button>)}</div></section>
 
-          <section className="proof-band"><div className="proof-number">01</div><div><div className="section-kicker">Engineering proof</div><h2>From raw rows to a defensible decision.</h2><p>This case study pairs a Python profiling pipeline with a typed frontend. The UI is intentionally transparent: synthetic input, explicit rules, visible failures and documented trade-offs.</p></div><div className="proof-stack"><span><Check size={14} />Python validation</span><span><Check size={14} />Typed contracts</span><span><Check size={14} />Reproducible run</span></div></section>
-          <footer className="footer"><span>DATA QUALITY OBSERVATORY / CASE STUDY 01</span><span>Built by Ibrahim Yebdri · Data &amp; Cloud</span></footer>
+            <section className="history-section" id="history"><div className="section-kicker"><Layers3 size={15} />Persistent history</div><h2>Every imported source leaves a trace.</h2><div className="history-list">{(overview.data?.recentRuns ?? []).map(({ run, dataset }) => <div className="history-row" key={run.id}><div><strong>RUN-{String(run.id).padStart(4, "0")}</strong><span>{dataset.name} · {formatDate(run.completedAt)}</span></div><span>{run.rowsProfiled.toLocaleString()} rows</span><strong className={run.qualityScore >= 85 ? "score-good" : "score-risk"}>{run.qualityScore}/100</strong></div>)}</div></section>
+          </>}
+
+          <section className="proof-band"><div className="proof-number">01</div><div><div className="section-kicker">Engineering proof</div><h2>From raw rows to a defensible decision.</h2><p>This workspace is intentionally opinionated: files are persisted, rules are deterministic and inspectable, every run is written to a relational history, and exports are generated from the current stored result.</p></div><div className="proof-stack"><span><Check size={14} />S3 file storage</span><span><Check size={14} />Typed tRPC contracts</span><span><Check size={14} />MySQL run history</span></div></section>
+          <footer className="footer"><span>DATA QUALITY OBSERVATORY / LIVE WORKSPACE</span><span>Built by Ibrahim Yebdri · Data &amp; Cloud</span></footer>
         </div>
       </main>
 
-      {selectedFinding && <div className="detail-overlay" role="dialog" aria-modal="true" aria-label="Finding detail" onClick={() => setSelectedFinding(null)}><div className="detail-drawer" onClick={(event) => event.stopPropagation()}><button className="drawer-close" onClick={() => setSelectedFinding(null)} aria-label="Close finding detail"><X size={18} /></button><div className="section-kicker">Finding detail / {selectedFinding.id}</div><h2>{selectedFinding.rule}</h2><p className="drawer-field"><span>Field</span><strong>{selectedFinding.field}</strong></p><p className="drawer-copy">The rule inspected <strong>{selectedFinding.rows}</strong>. Current result: <strong>{selectedFinding.impact}</strong>. This demonstration keeps remediation explicit rather than hiding the failure behind an aggregate score.</p><div className="drawer-sample"><div><span>Sample action</span><strong>{selectedFinding.status === "Failed" ? "Inspect upstream schedule" : "Review flagged rows"}</strong></div><button className="button primary" onClick={() => { announce("Sample inspection noted in the run log."); setSelectedFinding(null); }}>Inspect sample</button></div></div></div>}
+      {selectedFinding && <div className="detail-overlay" role="dialog" aria-modal="true" aria-label="Finding detail" onClick={() => setSelectedFinding(null)}><div className="detail-drawer" onClick={event => event.stopPropagation()}><button className="drawer-close" onClick={() => setSelectedFinding(null)} aria-label="Close finding detail"><X size={18} /></button><div className="section-kicker">Stored finding / {selectedFinding.ruleCode}</div><h2>{selectedFinding.ruleName}</h2><p className="drawer-field"><span>Field</span><strong>{selectedFinding.fieldName}</strong></p><p className="drawer-copy">{selectedFinding.message} The engine evaluated <strong>{selectedFinding.evaluatedRows.toLocaleString()} rows</strong> and recorded <strong>{selectedFinding.affectedRows.toLocaleString()} affected rows</strong>.</p><div className="drawer-sample"><div><span>Dimension</span><strong>{titleCase(selectedFinding.dimension)}</strong></div><StatusBadge status={selectedFinding.status} /></div></div></div>}
       {notice && <div className="toast" role="status"><Check size={15} />{notice}</div>}
     </div>
   );

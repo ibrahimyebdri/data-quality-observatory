@@ -2,9 +2,9 @@
 
 > **Quality is a claim. Show the check.**
 
-Data Quality Observatory is a portfolio-grade case study that turns a tabular dataset into an auditable quality report. It combines a dependency-free Python profiling pipeline with a transparent React interface that exposes the source, rules, score, findings and next actions instead of hiding them behind a single dashboard number.
+Data Quality Observatory is a full-stack data-quality workspace that turns an imported CSV into an auditable quality report. It persists the source, executes deterministic rules, records every run and exposes the score, findings, notifications and exportable report through a transparent Evidence Ledger interface.
 
-The project is intentionally labelled as a **synthetic local run**. It is a technical demonstration, not a production monitoring service and it does not claim customer usage or operational experience.
+The project is a technical portfolio application. It uses synthetic sample data for the repository examples, does not claim customer usage, and limits imported CSVs to 2 MB in this public version.
 
 ## Why this project exists
 
@@ -14,11 +14,12 @@ For a junior Data Engineer or Cloud/Data apprentice, a convincing repository sho
 
 | Layer | Demonstrated capability |
 | --- | --- |
-| Profiling CLI | Reads CSV data, calculates field-level statistics and emits a JSON report |
-| Quality rules | Checks completeness, uniqueness, email validity, country coverage and freshness |
-| Typed frontend | Presents a synthetic run with score dimensions, evidence and findings |
-| Tests | Covers the profiling functions and the command-line output contract |
-| Documentation | Explains the architecture, assumptions, limitations and next steps |
+| CSV ingestion | Accepts a user-selected CSV and stores the source file with the run |
+| Quality engine | Evaluates completeness, identifier uniqueness, email validity, date validity and reference-code consistency |
+| Typed API | Uses protected tRPC procedures for workspace data, CSV profiling and notification updates |
+| Persistent history | Stores datasets, runs, per-rule findings and alerts in a relational database |
+| Public interface | Uses GitHub Pages for the frontend and a separately deployed API for the runtime |
+| Tests | Covers the deterministic CSV quality engine, authentication logout contract and build-time type checks |
 
 ## Run the Python profiler
 
@@ -38,37 +39,37 @@ The output includes row count, column metadata, missing-value rates, duplicate p
 python3 -m unittest discover -s tests -v
 ```
 
-## Run the web interface
+## Run the full-stack workspace
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-The interface is a static, self-contained presentation of a reproducible local run. Its filters and finding drawer are interactive; the data shown in the UI is explicitly synthetic and kept deterministic for review.
+Sign in, import a CSV with a header row, and the application will create a persisted quality run. Every result shown in the workspace is derived from the imported file rather than from fixed dashboard data.
 
 ## Public demo
 
-The static interface is published through GitHub Pages at [ibrahimyebdri.github.io/data-quality-observatory](https://ibrahimyebdri.github.io/data-quality-observatory/). Every push to `main` runs the quality workflow and can publish a new Pages artifact after the checks pass.
+The public frontend is published through GitHub Pages at [ibrahimyebdri.github.io/data-quality-observatory](https://ibrahimyebdri.github.io/data-quality-observatory/). It connects to the deployed API at `https://dataqualobs-vhblwvv4.manus.space`. Every push to `main` runs the quality workflow and can publish a new Pages artifact after the checks pass.
 
 ## Architecture
 
 ```text
-samples/transactions.csv
-          │
+GitHub Pages frontend
+          │ typed tRPC, credentialed CORS
           ▼
-scripts/profile_dataset.py ───► artifacts/transactions-profile.json
-          │
-          └──► tests/test_profile_dataset.py
-
-client/src/pages/Home.tsx ───► Evidence Ledger interface
+Full-stack API ───► CSV quality engine ───► datasets, runs, findings, notifications
+          │                    │
+          │                    └──────────────► source CSV object storage
+          ▼
+Evidence Ledger interface ───► persisted reports and run history
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for the decisions, trade-offs and realistic next steps.
 
 ## Engineering notes
 
-This first version favours determinism and readability over framework complexity. The profiler does not silently repair input data; it reports violations so that an owner can decide whether to reject, quarantine or transform the affected rows. A production extension would add a schema contract, a scheduler, persistent run metadata and a warehouse adapter.
+The quality engine does not silently repair input data; it reports violations so that an owner can decide whether to reject, quarantine or transform affected rows. This portfolio release favours transparency and a small, reviewable rule set over an opaque scoring model. A production extension would add schema contracts, scheduling, role-based collaboration and warehouse adapters.
 
 ## Author
 
