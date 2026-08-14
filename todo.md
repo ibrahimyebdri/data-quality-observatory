@@ -43,12 +43,14 @@
 - [x] Document the exact protected request exercised by the OAuth handoff regression test.
 - [x] Superseded by the single-domain routing decision: the documented public route is GitHub Pages gateway to Manus workspace.
 - [x] Superseded by the single-domain routing decision: GitHub Pages exposes a labelled workspace link instead of a sign-in action.
-- [ ] Replace the GitHub Pages full-stack interface with a clear, accessible gateway linking to the single-domain Manus workspace.
+- [x] Replace the GitHub Pages full-stack interface with a clear, accessible gateway linking to the single-domain Manus workspace.
 - [x] Set the GitHub repository homepage to the Manus dynamic workspace URL.
 - [x] Update repository documentation to distinguish the source code URL, the GitHub Pages gateway and the functional Manus application URL.
 - [ ] Verify that the GitHub Pages gateway opens the Manus workspace on mobile and that the Manus workspace exposes the expected sign-in and import actions.
 - [x] Restore visible text contrast for the Manus landing page secondary action so “View example” is readable and actionable on desktop and mobile.
 - [ ] Verify the signed-out Manus landing page on a real mobile browser, confirming the visible “View example” label after the contrast correction.
+- [x] Rebuild the signed-out hero mobile into a single coherent panel so the description, actions and benefits do not spill onto the topographic texture.
+- [ ] Verify the signed-out hero at 360–390px width for containment, contrast and vertical spacing before republishing.
 - [ ] Verify the GitHub Pages gateway and Manus landing page actions visually on a mobile viewport after the contrast correction.
 - [x] Prevent a previous persisted run from appearing as the result of the unopened CSV example.
 - [x] Make the example execution opt-in, with a distinct source label, action timestamp and run identifier visible only after the user explicitly launches it.
