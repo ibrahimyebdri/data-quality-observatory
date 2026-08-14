@@ -17,3 +17,5 @@ An `OPTIONS` preflight request from `https://ibrahimyebdri.github.io` to the tRP
 The GitHub Pages workflow and the independent quality-check workflow both completed successfully for commit `62570c8`. The Pages build receives `VITE_API_URL=https://dataqualobs-vhblwvv4.manus.space`, so its tRPC client targets the deployed API rather than a static fixture.
 
 The OAuth flow now begins on the API origin, which owns the one-time state cookie and the long-lived session cookie. The post-login destination is restricted to the application’s own API origin or the published `ibrahimyebdri.github.io/data-quality-observatory` path. The final browser test is intentionally left open until the updated API deployment is confirmed at the public domain.
+
+The deployed API start endpoint was then opened from the public GitHub Pages return URL. It issued the expected redirect to the Data Quality Observatory sign-in page with an API-hosted callback URI and a nonce-bearing state value. Completing the import verification requires an authenticated user session; no credentials were entered during this technical check.

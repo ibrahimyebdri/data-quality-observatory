@@ -21,3 +21,8 @@
 - [ ] Verify a cross-origin CSV import, persisted quality run and report export end to end.
 - [x] Record a local CI verification with Node 22 and Python 3.12 equivalents to the GitHub workflow.
 - [x] Add explicit error recovery for workspace loading and notification updates, then verify that no dashboard action is decorative.
+- [x] Rebuild the workspace navigation as a functional mobile drawer with explicit Overview, Datasets, Rule results and Run history views.
+- [x] Correct the Evidence Ledger responsive layout so the sidebar, hero, import panel and actions never overlap or clip on narrow screens.
+- [x] Verify the mobile layout and all navigation actions at a 360–390px viewport before republishing.
+- [ ] Verify the authenticated workspace at 360–390px width: open the mobile drawer, test Overview, Datasets, Rule results and Run history navigation targets, and confirm no clipping or overlap after sign-in.
+- [ ] Document the authenticated mobile navigation verification with the viewport and tested destinations in docs/verification.md.

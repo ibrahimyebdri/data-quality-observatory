@@ -1,6 +1,7 @@
 import { startLogin } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { type WorkspaceSection, workspaceNavigation } from "@/lib/workspaceNavigation";
 import { useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -21,6 +22,7 @@ import {
   Table2,
   X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type FindingStatus = "passed" | "review" | "failed";
 type Finding = {
@@ -35,12 +37,13 @@ type Finding = {
   message: string;
 };
 
-const navItems = [
-  { label: "Overview", icon: Activity, target: "overview" },
-  { label: "Datasets", icon: Database, target: "source" },
-  { label: "Rule results", icon: FileCheck2, target: "findings" },
-  { label: "Run history", icon: Layers3, target: "history" },
-];
+const navigationIcons: Record<WorkspaceSection, LucideIcon> = {
+  overview: Activity,
+  source: Database,
+  findings: FileCheck2,
+  history: Layers3,
+};
+const navItems = workspaceNavigation.map(item => ({ ...item, icon: navigationIcons[item.target] }));
 
 function titleCase(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -94,6 +97,7 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState<"all" | FindingStatus>("all");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("overview");
   const [notice, setNotice] = useState("");
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
@@ -109,9 +113,17 @@ export default function Home() {
   const unreadCount = overview.data?.notifications.filter(notification => !notification.isRead).length ?? 0;
   const dimensionScores = report?.dimensionScores ?? { completeness: 0, validity: 0, integrity: 0, freshness: 0, consistency: 0 };
 
+  const activeSectionLabel = navItems.find(item => item.target === activeSection)?.label ?? "Overview";
+
   function scrollTo(target: string) {
+    setActiveSection(target);
     setMobileOpen(false);
-    document.getElementById(target)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.requestAnimationFrame(() => {
+      const destination = document.getElementById(target);
+      if (destination) {
+        destination.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
   }
 
   async function handleFile(file: File | undefined) {
@@ -167,8 +179,8 @@ export default function Home() {
         <div className="rail-section-label">Workspace</div>
         <nav aria-label="Workspace navigation">
           {navItems.map(({ label, icon: Icon, target }) => (
-            <button className={`rail-link ${target === "overview" ? "active" : ""}`} key={label} onClick={() => scrollTo(target)}>
-              <Icon size={17} strokeWidth={1.8} /><span>{label}</span>{target === "overview" && <span className="rail-active-line" />}
+            <button className={`rail-link ${target === activeSection ? "active" : ""}`} key={label} onClick={() => scrollTo(target)} aria-current={target === activeSection ? "page" : undefined}>
+              <Icon size={17} strokeWidth={1.8} /><span>{label}</span>{target === activeSection && <span className="rail-active-line" />}
             </button>
           ))}
         </nav>
@@ -178,11 +190,12 @@ export default function Home() {
           <div className="rail-footnote"><ShieldCheck size={14} />Real CSVs, stored evidence, explicit rules</div>
         </div>
       </aside>
+      {mobileOpen && <button className="rail-backdrop" onClick={() => setMobileOpen(false)} aria-label="Close navigation" />}
 
       <main className="main-canvas">
         <header className="topbar">
           <button className="mobile-menu" onClick={() => setMobileOpen(true)} aria-label="Open navigation"><Menu size={21} /></button>
-          <div className="topbar-left"><div className="top-brand"><img className="top-brand-image" src="/manus-storage/dqo-mark_eed61913.png" alt="" aria-hidden="true" /><span><strong>DQ<span>O</span></strong><small>Observatory</small></span></div><div className="breadcrumb"><span>Workspace</span><ChevronDown size={14} /><strong>Overview</strong></div></div>
+          <div className="topbar-left"><div className="top-brand"><img className="top-brand-image" src="/manus-storage/dqo-mark_eed61913.png" alt="" aria-hidden="true" /><span><strong>DQ<span>O</span></strong><small>Observatory</small></span></div><div className="breadcrumb"><span>Workspace</span><ChevronDown size={14} /><strong>{activeSectionLabel}</strong></div></div>
           <div className="top-actions">
             <span className="environment"><span className="live-dot" />Persistent workspace</span>
             <div className="alert-anchor"><button className="icon-button" onClick={() => setAlertsOpen(open => !open)} aria-label="View quality alerts"><Bell size={18} />{unreadCount > 0 && <span className="alert-count">{unreadCount}</span>}</button>
@@ -198,7 +211,24 @@ export default function Home() {
             <div className="hero-actions"><button className="button secondary" disabled={!latest} onClick={exportLatestReport}><Download size={16} />Export report</button><button className="button primary" onClick={() => inputRef.current?.click()} disabled={importCsv.isPending}>{importCsv.isPending ? <Loader2 className="spin" size={16} /> : <FileUp size={16} />}{importCsv.isPending ? "Profiling CSV…" : "Import CSV"}</button><input ref={inputRef} className="sr-only" type="file" accept=".csv,text/csv" onChange={event => { handleFile(event.target.files?.[0]); event.currentTarget.value = ""; }} /></div>
           </section>
 
-          {overview.isLoading ? <AppLoading /> : overview.isError ? <section className="empty-state"><AlertTriangle size={27} /><div><div className="section-kicker">Workspace unavailable</div><h2>The persisted workspace could not be loaded.</h2><p>{overview.error.message}</p></div><button className="button primary" onClick={() => overview.refetch()}><Activity size={16} />Retry workspace</button></section> : !latest ? <section className="empty-state"><Table2 size={27} /><div><div className="section-kicker">No data staged</div><h2>Start with a dataset you can inspect.</h2><p>Import a CSV with a header row and at least one record. DQO will evaluate completeness, identifiers, dates, emails and reference codes where those fields exist.</p></div><button className="button primary" onClick={() => inputRef.current?.click()}><FileUp size={16} />Choose CSV</button></section> : <>
+          {overview.isLoading ? <AppLoading /> : overview.isError ? <section className="empty-state"><AlertTriangle size={27} /><div><div className="section-kicker">Workspace unavailable</div><h2>The persisted workspace could not be loaded.</h2><p>{overview.error.message}</p></div><button className="button primary" onClick={() => overview.refetch()}><Activity size={16} />Retry workspace</button></section> : !latest ? <>
+            <section className="empty-state" id="source">
+              <Table2 size={27} />
+              <div><div className="section-kicker">No data staged</div><h2>Start with a dataset you can inspect.</h2><p>Import a CSV with a header row and at least one record. DQO will evaluate completeness, identifiers, dates, emails and reference codes where those fields exist.</p></div>
+              <button className="button primary" onClick={() => inputRef.current?.click()}><FileUp size={16} />Choose CSV</button>
+            </section>
+            <section className="empty-companion" id="findings">
+              <div className="section-kicker"><FileCheck2 size={15} />Rule results</div>
+              <h2>No rules have been executed yet.</h2>
+              <p>Importing a CSV will create an auditable run, calculate its quality score and display each passed, review or failed rule here.</p>
+              <button className="text-button" onClick={() => inputRef.current?.click()}>Choose a CSV to generate rule evidence <ArrowUpRight size={15} /></button>
+            </section>
+            <section className="history-section" id="history">
+              <div className="section-kicker"><Layers3 size={15} />Persistent history</div>
+              <h2>This workspace has no recorded run yet.</h2>
+              <p className="history-empty-copy">Each import creates a persisted record here. The run history is intentionally empty until a real CSV is analysed.</p>
+            </section>
+          </> : <>
             <section className="metric-strip" aria-label="Run summary metrics">
               <div className="metric-card"><span className="metric-label">Rows profiled</span><strong>{latest.run.rowsProfiled.toLocaleString()}</strong><span className="metric-meta positive"><Check size={13} />Stored source and report</span></div>
               <div className="metric-card"><span className="metric-label">Rules evaluated</span><strong>{allFindings.length} <small>/ {allFindings.length}</small></strong><span className="metric-meta">Across detected dimensions</span></div>
