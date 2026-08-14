@@ -35,3 +35,30 @@ The example-data contract, the quality engine, the protected router, OAuth redir
 The latest public revision was pushed to GitHub commit `d6f8a9a` and both the **Quality checks** and **Deploy to GitHub Pages** workflows completed successfully. The public URL loaded the API-backed entry state and revealed the complete six-row example preview from GitHub Pages.
 
 The active report no longer defaults to the most recent persisted run. Before a user deliberately imports a CSV, runs the example, or selects a recorded run, the workspace shows an explicit no-active-run state. Opening the example always shows input rows and expected signals only; it hides scores, findings and exports until the dedicated execution action returns a newly persisted run.
+
+## User-device verification — 14 August 2026
+
+The project owner imported `customer-quality-stress-test.csv` from a signed-in mobile session. The resulting interface displayed a newly persisted run (`#60001`) for **12 rows**, with an 80/100 quality score. The screenshot visibly confirms the expected failed findings for `customer_id` uniqueness, `currency` and `country_code` normalization, e-mail validity, e-mail and account-status completeness, and the start of the date-parseability finding. This validates that the uploaded data was evaluated by the real backend rather than presented as a static example.
+
+The lower portions of the same capture confirm the failed `signup_date` parseability rule, failed `full_name` and `customer_id` completeness rules, and passing completeness rules for `country_code`, `currency` and `signup_date`, plus passing schema-header integrity. The visible combination matches the intentional fixture design: a populated but malformed date is invalid, while blank values are reported separately by completeness.
+
+The final screen region confirms the freshness rule passed and that the run is present in the **Persistent history** area. Its confirmation toast reads: `Run #60001 persisted: 80/100 across 12 rows`, while the history entry identifies the imported source as `customer-quality-stress-test` at 10:29 on 14 August 2026.
+
+### Database persistence proof
+
+The following read-only query was run against the production database after the mobile import:
+
+```sql
+SELECT qr.id, d.name, qr.status, qr.qualityScore, qr.rowsProfiled,
+       qr.columnsProfiled, qr.completedAt, COUNT(qf.id) AS persisted_findings
+FROM quality_runs qr
+JOIN datasets d ON d.id = qr.datasetId
+LEFT JOIN quality_findings qf ON qf.runId = qr.id
+WHERE qr.id = 60001
+GROUP BY qr.id, d.name, qr.status, qr.qualityScore, qr.rowsProfiled,
+         qr.columnsProfiled, qr.completedAt;
+```
+
+It returned one `succeeded` run for `customer-quality-stress-test`: **12 rows**, **7 columns**, **80/100**, completed at `2026-08-14 09:29:46`, with **14 persisted findings**. This independently confirms the live UI result and provides a reproducible persistence check without introducing test data.
+
+The same read-only verification is committed as a project command: `pnpm verify:run -- 60001`. It queries the persisted run, its dataset metadata and its findings through the existing Drizzle connection; it does not insert, update or delete any data.

@@ -13,7 +13,10 @@
 - [x] Define persistent tables for datasets, quality rules, runs, findings and notifications.
 - [x] Implement typed backend procedures for upload, profiling, rule execution and run history.
 - [x] Connect every dashboard action to real queries or mutations with loading and error states.
-- [ ] Verify an end-to-end flow with a real uploaded CSV and a persisted quality report.
+- [x] Verify an end-to-end flow with a real uploaded CSV and a persisted quality report.
+- [x] Add a reproducible live-persistence verification artifact or integration test for a real CSV import and stored report.
+- [x] Add an executable read-only verification script for persisted CSV runs, with documented expected metadata.
+- [ ] Verify the authenticated GitHub Pages flow end to end: sign-in, real CSV import, persisted history and report export.
 - [x] Publish and document the dynamic architecture and the remaining production limitations.
 - [x] Configure a public API origin for requests sent from GitHub Pages.
 - [x] Allow the GitHub Pages origin in the server CORS policy without opening unnecessary origins.
