@@ -138,6 +138,8 @@ h1 em { color: #0c7775; font-family: 'DM Serif Display', serif; font-weight: 400
 .signed-out-card h1 { color: #f6f1e7; }.signed-out-card h1 em { color: #63c5b3; }
 .signed-out-card p { max-width: 580px; margin-top: 20px; color: #b6bdb6; font-size: 14px; line-height: 1.7; }
 .signed-out-card .button { margin-top: 28px; }
+.signed-out-card .button.secondary { color: #dbe9e2; border-color: rgba(219,233,226,.55); background: rgba(255,255,255,.06); }
+.signed-out-card .button.secondary:hover { color: #f7f3eb; border-color: #63c5b3; background: rgba(99,197,179,.16); }
 .signed-out-proof { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 31px; padding-top: 16px; border-top: 1px solid rgba(244,240,231,.14); color: #bfc8c0; font-family: 'IBM Plex Mono', monospace; font-size: 9px; }
 .signed-out-proof span { display: flex; gap: 6px; align-items: center; }.signed-out-proof svg { color: #63c5b3; }
 @keyframes spin { to { transform: rotate(360deg); } }

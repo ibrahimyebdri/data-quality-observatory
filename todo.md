@@ -47,6 +47,9 @@
 - [x] Set the GitHub repository homepage to the Manus dynamic workspace URL.
 - [x] Update repository documentation to distinguish the source code URL, the GitHub Pages gateway and the functional Manus application URL.
 - [ ] Verify that the GitHub Pages gateway opens the Manus workspace on mobile and that the Manus workspace exposes the expected sign-in and import actions.
+- [x] Restore visible text contrast for the Manus landing page secondary action so “View example” is readable and actionable on desktop and mobile.
+- [ ] Verify the signed-out Manus landing page on a real mobile browser, confirming the visible “View example” label after the contrast correction.
+- [ ] Verify the GitHub Pages gateway and Manus landing page actions visually on a mobile viewport after the contrast correction.
 - [x] Prevent a previous persisted run from appearing as the result of the unopened CSV example.
 - [x] Make the example execution opt-in, with a distinct source label, action timestamp and run identifier visible only after the user explicitly launches it.
 - [x] Add regression coverage for the empty state, the sample-preview state and the post-execution state so that no result is presented as static example data.
