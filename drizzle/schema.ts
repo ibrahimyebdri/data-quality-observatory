@@ -106,6 +106,28 @@ export const qualityNotifications = mysqlTable(
   table => [index("quality_notifications_owner_idx").on(table.ownerId)],
 );
 
+/**
+ * One-time, short-lived OAuth handoffs used only when the static GitHub Pages
+ * frontend returns from the API host. The browser receives the opaque code in
+ * the URL fragment; the database stores only its SHA-256 digest and the user
+ * identifier required to mint a session at redemption time.
+ */
+export const authHandoffs = mysqlTable(
+  "auth_handoffs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    codeHash: varchar("codeHash", { length: 64 }).notNull().unique(),
+    openId: varchar("openId", { length: 64 }).notNull(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    consumedAt: timestamp("consumedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    index("auth_handoffs_expiry_idx").on(table.expiresAt),
+    index("auth_handoffs_user_idx").on(table.openId),
+  ],
+);
+
 export type Dataset = typeof datasets.$inferSelect;
 export type QualityRun = typeof qualityRuns.$inferSelect;
 export type QualityFinding = typeof qualityFindings.$inferSelect;

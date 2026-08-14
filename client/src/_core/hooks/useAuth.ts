@@ -1,4 +1,4 @@
-import { startLogin } from "@/const";
+import { GITHUB_HANDOFF_STORAGE_KEY, startLogin } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -44,6 +44,7 @@ export function useAuth(options?: UseAuthOptions) {
       // backend cookie is cleared by the logout mutation.
       try {
         sessionStorage.removeItem("manus-cookie");
+        sessionStorage.removeItem(GITHUB_HANDOFF_STORAGE_KEY);
       } catch {}
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();

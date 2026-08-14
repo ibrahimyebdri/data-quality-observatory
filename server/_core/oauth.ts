@@ -6,12 +6,22 @@ import {
   encodeOAuthState,
 } from "@shared/const";
 import { parse as parseCookieHeader } from "cookie";
+import { randomBytes } from "crypto";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { ENV } from "./env";
-import { getApiOrigin, validateReturnTo } from "./oauthRedirect";
+import { getApiOrigin, isGitHubPagesReturnTo, validateReturnTo } from "./oauthRedirect";
+import { hashHandoffCode, redeemOAuthHandoff } from "./oauthHandoff";
 import { sdk } from "./sdk";
+
+const HANDOFF_TTL_MS = 2 * 60 * 1000;
+
+export { hashHandoffCode } from "./oauthHandoff";
+
+function createHandoffCode() {
+  return randomBytes(32).toString("base64url");
+}
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -106,10 +116,56 @@ export function registerOAuthRoutes(app: Express) {
         host: req.get("host"),
       });
       const safeReturnTo = validateReturnTo(returnTo, apiOrigin) ?? `${apiOrigin}/`;
+
+      // A cookie set on the Manus API is third-party from GitHub Pages and may
+      // be blocked by mobile browsers. Return a short-lived, opaque code in the
+      // fragment instead: fragments never reach servers or referrer headers.
+      if (isGitHubPagesReturnTo(safeReturnTo)) {
+        const handoffCode = createHandoffCode();
+        await db.createAuthHandoff({
+          codeHash: hashHandoffCode(handoffCode),
+          openId: userInfo.openId,
+          expiresAt: new Date(Date.now() + HANDOFF_TTL_MS),
+        });
+        const returnUrl = new URL(safeReturnTo);
+        returnUrl.hash = new URLSearchParams({ handoff: handoffCode }).toString();
+        res.setHeader("Cache-Control", "no-store");
+        res.redirect(302, returnUrl.toString());
+        return;
+      }
+
       res.redirect(302, safeReturnTo);
     } catch (error) {
       console.error("[OAuth] Callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });
+    }
+  });
+
+  app.post("/api/oauth/handoff/redeem", async (req: Request, res: Response) => {
+    const origin = req.get("origin");
+    if (ENV.isProduction && origin !== "https://ibrahimyebdri.github.io") {
+      res.status(403).json({ error: "GitHub Pages origin required" });
+      return;
+    }
+
+    const code = typeof req.body?.code === "string" ? req.body.code : "";
+
+    try {
+      const redemption = await redeemOAuthHandoff(code, {
+        consume: db.consumeAuthHandoff,
+        getName: async openId => (await db.getUserByOpenId(openId))?.name || "",
+        issueSession: (openId, name) =>
+          sdk.createSessionToken(openId, { name, expiresInMs: ONE_YEAR_MS }),
+      });
+      if (!redemption) {
+        res.status(401).json({ error: "OAuth handoff expired or already used" });
+        return;
+      }
+      res.setHeader("Cache-Control", "no-store");
+      res.json({ sessionToken: redemption.sessionToken });
+    } catch (error) {
+      console.error("[OAuth] Handoff redemption failed", error);
+      res.status(500).json({ error: "OAuth handoff redemption failed" });
     }
   });
 }

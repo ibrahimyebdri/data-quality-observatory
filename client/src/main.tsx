@@ -5,7 +5,8 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { getApiOrigin, startLogin } from "./const";
+import { GITHUB_HANDOFF_STORAGE_KEY, getApiOrigin, redeemGitHubPagesHandoff, startLogin } from "./const";
+import { getHandoffAuthorization } from "./lib/githubSessionBridge";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -50,6 +51,12 @@ const trpcClient = trpc.createClient({
       url: trpcEndpoint,
       transformer: superjson,
       headers() {
+        try {
+          const handoffHeader = getHandoffAuthorization(sessionStorage);
+          if (handoffHeader) return handoffHeader;
+        } catch {
+          // sessionStorage unavailable
+        }
         // Preview auto-login fallback: when the browser blocks iframe cookies
         // (Safari ITP / private browsing / WebView), the runtime mirrors the
         // session into sessionStorage so we can forward it as a Bearer token.
@@ -79,10 +86,15 @@ const trpcClient = trpc.createClient({
   ],
 });
 
-createRoot(document.getElementById("root")!).render(
-  <trpc.Provider client={trpcClient} queryClient={queryClient}>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </trpc.Provider>
-);
+async function bootstrap() {
+  await redeemGitHubPagesHandoff();
+  createRoot(document.getElementById("root")!).render(
+    <trpc.Provider client={trpcClient} queryClient={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </trpc.Provider>,
+  );
+}
+
+void bootstrap();

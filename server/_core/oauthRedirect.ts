@@ -41,3 +41,16 @@ export function validateReturnTo(
     return null;
   }
 }
+
+export function isGitHubPagesReturnTo(returnTo: string): boolean {
+  try {
+    const target = new URL(returnTo);
+    return (
+      target.origin === GITHUB_PAGES_ORIGIN &&
+      (target.pathname === GITHUB_PAGES_BASE_PATH ||
+        target.pathname.startsWith(`${GITHUB_PAGES_BASE_PATH}/`))
+    );
+  } catch {
+    return false;
+  }
+}

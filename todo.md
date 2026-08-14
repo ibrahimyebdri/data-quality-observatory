@@ -34,6 +34,15 @@
 - [x] Show a readable preview of the example’s rows, columns and expected quality signals before the user launches the test.
 - [x] Cover the example-data contract and verify the demonstration workflow in the built application.
 - [ ] Execute the example CSV through an authenticated GitHub Pages session and confirm that its persisted run and export match the visible preview.
+- [ ] Fix the GitHub Pages post-login session so the workspace remains authenticated after OAuth returns from the API domain.
+- [x] Add regression coverage for the GitHub Pages authentication return and remote authenticated `auth.me` request.
+- [x] Add a handoff regression that returns the authenticated user from `auth.me` with the redeemed bearer token.
+- [x] Document the specific `auth.me` bearer regression once it is in the test suite.
+- [ ] Verify that GitHub Pages redeems a post-OAuth handoff and lands in the authenticated workspace on a real mobile browser.
+- [x] Add an integration test that redeems a one-time handoff and authorizes an authenticated protected request with the resulting bearer token.
+- [x] Document the exact protected request exercised by the OAuth handoff regression test.
+- [ ] Document the successful public GitHub Pages post-login verification after reproducing it end to end.
+- [ ] Verify on a mobile GitHub Pages session that sign-in reaches the workspace instead of returning to the sign-in screen.
 - [x] Prevent a previous persisted run from appearing as the result of the unopened CSV example.
 - [x] Make the example execution opt-in, with a distinct source label, action timestamp and run identifier visible only after the user explicitly launches it.
 - [x] Add regression coverage for the empty state, the sample-preview state and the post-execution state so that no result is presented as static example data.

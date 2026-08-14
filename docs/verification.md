@@ -62,3 +62,7 @@ GROUP BY qr.id, d.name, qr.status, qr.qualityScore, qr.rowsProfiled,
 It returned one `succeeded` run for `customer-quality-stress-test`: **12 rows**, **7 columns**, **80/100**, completed at `2026-08-14 09:29:46`, with **14 persisted findings**. This independently confirms the live UI result and provides a reproducible persistence check without introducing test data.
 
 The same read-only verification is committed as a project command: `pnpm verify:run -- 60001`. It queries the persisted run, its dataset metadata and its findings through the existing Drizzle connection; it does not insert, update or delete any data.
+
+### OAuth handoff protected-route regression
+
+`server/_core/oauthHandoff.integration.test.ts` redeems a syntactically valid one-time handoff into a bearer session, authenticates an Express-style request through `sdk.authenticateRequest`, then calls `auth.me` with the resulting authenticated tRPC context and asserts that the expected user is returned. The same test also calls the protected `quality.overview` procedure and asserts that it reaches the owner-scoped persistence helper. It covers the server-side sequence used by GitHub Pages after it receives the opaque fragment handoff; the final browser check remains necessary to confirm a real mobile browser stores and sends the bearer as expected.

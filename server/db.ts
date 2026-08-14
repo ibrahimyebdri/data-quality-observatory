@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { authHandoffs, InsertUser, users } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -87,6 +87,52 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+/** Stores the digest of a short-lived code, never the code itself or a session token. */
+export async function createAuthHandoff(input: {
+  codeHash: string;
+  openId: string;
+  expiresAt: Date;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable for OAuth handoff");
+  await db.insert(authHandoffs).values(input);
+}
+
+/** Atomically claims an unexpired one-time code and returns its associated user. */
+export async function consumeAuthHandoff(codeHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable for OAuth handoff");
+
+  const now = new Date();
+  const row = await db
+    .select({ openId: authHandoffs.openId })
+    .from(authHandoffs)
+    .where(
+      and(
+        eq(authHandoffs.codeHash, codeHash),
+        isNull(authHandoffs.consumedAt),
+        gt(authHandoffs.expiresAt, now),
+      ),
+    )
+    .limit(1);
+
+  if (!row[0]) return null;
+
+  const result = (await db
+    .update(authHandoffs)
+    .set({ consumedAt: now })
+    .where(
+      and(
+        eq(authHandoffs.codeHash, codeHash),
+        isNull(authHandoffs.consumedAt),
+        gt(authHandoffs.expiresAt, now),
+      ),
+    )) as unknown as { affectedRows?: number };
+
+  if (result.affectedRows !== 1) return null;
+  return row[0];
 }
 
 // TODO: add feature queries here as your schema grows.

@@ -3,6 +3,7 @@ import {
   GITHUB_PAGES_ORIGIN,
   PRODUCTION_API_ORIGIN,
   getApiOrigin,
+  isGitHubPagesReturnTo,
   validateReturnTo,
 } from "./oauthRedirect";
 
@@ -36,5 +37,12 @@ describe("OAuth return-target validation", () => {
     expect(
       getApiOrigin({ isProduction: false, protocol: "http", host: "localhost:3000" }),
     ).toBe("http://localhost:3000");
+  });
+
+  it("limits session handoffs to the exact published Pages application", () => {
+    expect(isGitHubPagesReturnTo(`${GITHUB_PAGES_ORIGIN}/data-quality-observatory/`)).toBe(true);
+    expect(isGitHubPagesReturnTo(`${GITHUB_PAGES_ORIGIN}/data-quality-observatory/reports`)).toBe(true);
+    expect(isGitHubPagesReturnTo(`${GITHUB_PAGES_ORIGIN}/other-project/`)).toBe(false);
+    expect(isGitHubPagesReturnTo("https://example.com/data-quality-observatory/")).toBe(false);
   });
 });
