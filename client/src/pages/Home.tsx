@@ -1,5 +1,6 @@
 import { startLogin } from "@/const";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { exampleCsvContent, exampleCsvDownloadUrl, exampleDataset } from "@/lib/exampleDataset";
 import { trpc } from "@/lib/trpc";
 import { type WorkspaceSection, workspaceNavigation } from "@/lib/workspaceNavigation";
 import { useMemo, useRef, useState } from "react";
@@ -78,6 +79,31 @@ function AppLoading() {
   return <div className="app-loading"><Loader2 className="spin" size={24} /><span>Opening the quality workspace…</span></div>;
 }
 
+function ExampleDatasetPreview({
+  onClose,
+  onRun,
+  runLabel,
+  isRunning,
+}: {
+  onClose: () => void;
+  onRun: () => void;
+  runLabel: string;
+  isRunning: boolean;
+}) {
+  return (
+    <section className="example-preview" aria-label="Example CSV dataset">
+      <div className="example-preview-head">
+        <div><div className="section-kicker"><Table2 size={15} />Inspectable example</div><h2>{exampleDataset.title}</h2><p>Synthetic, non-personal rows designed to make the real checks visible before you run them.</p></div>
+        <button className="icon-button" onClick={onClose} aria-label="Close example preview"><X size={17} /></button>
+      </div>
+      <div className="example-meta"><span>{exampleDataset.rows.length} rows</span><span>{exampleDataset.headers.length} columns</span><span>{exampleDataset.fileName}</span></div>
+      <div className="example-table-wrap"><table className="example-table"><thead><tr>{exampleDataset.headers.map(header => <th key={header}>{header}</th>)}</tr></thead><tbody>{exampleDataset.rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td className={!cell ? "example-empty" : ""} key={`${rowIndex}-${exampleDataset.headers[cellIndex]}`}>{cell || "(blank)"}</td>)}</tr>)}</tbody></table></div>
+      <div className="example-signals"><span>Expected signals</span><ul>{exampleDataset.expectedSignals.map(signal => <li key={signal}><AlertTriangle size={13} />{signal}</li>)}</ul></div>
+      <div className="example-actions"><a className="button secondary" href={exampleCsvDownloadUrl} download={exampleDataset.fileName}><Download size={16} />Download CSV</a><button className="button primary" onClick={onRun} disabled={isRunning}>{isRunning ? <Loader2 className="spin" size={16} /> : <Activity size={16} />}{isRunning ? "Profiling example…" : runLabel}</button></div>
+    </section>
+  );
+}
+
 export default function Home() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const utils = trpc.useUtils();
@@ -101,6 +127,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [selectedFinding, setSelectedFinding] = useState<Finding | null>(null);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [exampleOpen, setExampleOpen] = useState(false);
 
   const latest = overview.data?.latest;
   const report = latest?.report;
@@ -140,6 +167,10 @@ export default function Home() {
     importCsv.mutate({ fileName: file.name, content });
   }
 
+  function runExampleCsv() {
+    importCsv.mutate({ fileName: exampleDataset.fileName, content: exampleCsvContent });
+  }
+
   function exportLatestReport() {
     if (!latest || !report) return;
     const document = { exportedAt: new Date().toISOString(), run: latest.run, dataset: latest.dataset, report, findings: allFindings };
@@ -161,8 +192,9 @@ export default function Home() {
           <div className="section-kicker"><ShieldCheck size={15} />Data quality, with evidence</div>
           <h1>Bring the dataset.<br /><em>We show the checks.</em></h1>
           <p>Sign in to upload a CSV, persist it securely, execute deterministic quality rules, and keep an auditable history of every run.</p>
-          <button className="button primary" onClick={() => startLogin()}>Sign in to the workspace <ArrowUpRight size={16} /></button>
+          <div className="signed-out-actions"><button className="button primary" onClick={() => startLogin()}>Sign in to the workspace <ArrowUpRight size={16} /></button><button className="button secondary" onClick={() => setExampleOpen(open => !open)}><Table2 size={16} />{exampleOpen ? "Hide example" : "View example"}</button></div>
           <div className="signed-out-proof"><span><Check size={13} />CSV ingestion</span><span><Check size={13} />Persistent findings</span><span><Check size={13} />Downloadable reports</span></div>
+          {exampleOpen && <ExampleDatasetPreview onClose={() => setExampleOpen(false)} onRun={() => startLogin()} runLabel="Sign in to run example" isRunning={false} />}
         </main>
       </div>
     );
@@ -208,14 +240,16 @@ export default function Home() {
         <div className="content-wrap" id="overview">
           <section className="hero-intro">
             <div><div className="eyebrow"><span className="eyebrow-rule" />{latest ? `Quality run / ${formatDate(latest.run.completedAt)}` : "Workspace ready for a source"}</div><h1>Quality is a claim.<br /><em>Show the check.</em></h1><p className="hero-copy">Upload a real CSV. The application persists the file, executes deterministic rules, writes evidence to the database, and keeps every run available for review.</p></div>
-            <div className="hero-actions"><button className="button secondary" disabled={!latest} onClick={exportLatestReport}><Download size={16} />Export report</button><button className="button primary" onClick={() => inputRef.current?.click()} disabled={importCsv.isPending}>{importCsv.isPending ? <Loader2 className="spin" size={16} /> : <FileUp size={16} />}{importCsv.isPending ? "Profiling CSV…" : "Import CSV"}</button><input ref={inputRef} className="sr-only" type="file" accept=".csv,text/csv" onChange={event => { handleFile(event.target.files?.[0]); event.currentTarget.value = ""; }} /></div>
+            <div className="hero-actions"><button className="button secondary" disabled={!latest} onClick={exportLatestReport}><Download size={16} />Export report</button><button className="button secondary" onClick={() => setExampleOpen(open => !open)}><Table2 size={16} />{exampleOpen ? "Hide example" : "Example"}</button><button className="button primary" onClick={() => inputRef.current?.click()} disabled={importCsv.isPending}>{importCsv.isPending ? <Loader2 className="spin" size={16} /> : <FileUp size={16} />}{importCsv.isPending ? "Profiling CSV…" : "Import CSV"}</button><input ref={inputRef} className="sr-only" type="file" accept=".csv,text/csv" onChange={event => { handleFile(event.target.files?.[0]); event.currentTarget.value = ""; }} /></div>
           </section>
+
+          {exampleOpen && <ExampleDatasetPreview onClose={() => setExampleOpen(false)} onRun={runExampleCsv} runLabel="Run example through checks" isRunning={importCsv.isPending} />}
 
           {overview.isLoading ? <AppLoading /> : overview.isError ? <section className="empty-state"><AlertTriangle size={27} /><div><div className="section-kicker">Workspace unavailable</div><h2>The persisted workspace could not be loaded.</h2><p>{overview.error.message}</p></div><button className="button primary" onClick={() => overview.refetch()}><Activity size={16} />Retry workspace</button></section> : !latest ? <>
             <section className="empty-state" id="source">
               <Table2 size={27} />
               <div><div className="section-kicker">No data staged</div><h2>Start with a dataset you can inspect.</h2><p>Import a CSV with a header row and at least one record. DQO will evaluate completeness, identifiers, dates, emails and reference codes where those fields exist.</p></div>
-              <button className="button primary" onClick={() => inputRef.current?.click()}><FileUp size={16} />Choose CSV</button>
+              <div className="empty-actions"><button className="button secondary" onClick={() => setExampleOpen(true)}><Table2 size={16} />View example</button><button className="button primary" onClick={() => inputRef.current?.click()}><FileUp size={16} />Choose CSV</button></div>
             </section>
             <section className="empty-companion" id="findings">
               <div className="section-kicker"><FileCheck2 size={15} />Rule results</div>

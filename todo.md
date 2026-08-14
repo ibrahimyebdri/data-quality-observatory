@@ -26,3 +26,8 @@
 - [x] Verify the mobile layout and all navigation actions at a 360–390px viewport before republishing.
 - [ ] Verify the authenticated workspace at 360–390px width: open the mobile drawer, test Overview, Datasets, Rule results and Run history navigation targets, and confirm no clipping or overlap after sign-in.
 - [ ] Document the authenticated mobile navigation verification with the viewport and tested destinations in docs/verification.md.
+- [x] Add a visible, downloadable example CSV dataset with deliberately inspectable quality issues for product demonstration.
+- [x] Add an "Essayer avec un exemple" action that runs the real CSV profiling, persistence and report path after authentication.
+- [x] Show a readable preview of the example’s rows, columns and expected quality signals before the user launches the test.
+- [x] Cover the example-data contract and verify the demonstration workflow in the built application.
+- [ ] Execute the example CSV through an authenticated GitHub Pages session and confirm that its persisted run and export match the visible preview.
