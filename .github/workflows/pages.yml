@@ -36,6 +36,8 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
       - name: Type-check and build
+        env:
+          VITE_API_URL: https://dataqualobs-vhblwvv4.manus.space
         run: pnpm check && pnpm build
       - name: Configure Pages
         uses: actions/configure-pages@v5

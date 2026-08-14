@@ -5,7 +5,7 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { startLogin } from "./const";
+import { getApiOrigin, startLogin } from "./const";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -15,9 +15,7 @@ const queryClient = new QueryClient();
  * origin is detected, tRPC calls are routed to the deployed full-stack API.
  * Local previews and the full-stack application keep their same-origin API.
  */
-const trpcEndpoint = window.location.hostname === "ibrahimyebdri.github.io"
-  ? "https://dataqualobs-vhblwvv4.manus.space/api/trpc"
-  : "/api/trpc";
+const trpcEndpoint = `${getApiOrigin()}/api/trpc`;
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
   if (!(error instanceof TRPCClientError)) return;
