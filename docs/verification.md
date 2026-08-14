@@ -25,3 +25,9 @@ The deployed API start endpoint was then opened from the public GitHub Pages ret
 Commit `b4ffbf3` passed both the Quality checks and Deploy Pages GitHub workflows. The public Pages URL loaded the API-backed sign-in screen successfully after the new deployment. The authenticated workspace was also rendered at a 390px viewport in the development preview: the mobile header, import actions, staged-data panel, rule-results destination and history destination remained legible without horizontal clipping.
 
 The mobile rail was rebuilt as an off-canvas drawer with a dedicated backdrop, an explicit close control, an active destination state and concrete anchors for Overview, Datasets, Rule results and Run history. A final manual authenticated navigation pass remains pending because it requires a user-owned OAuth session.
+
+## 2026-08-14 — Inspectable CSV example
+
+The public entry state now exposes an **Example** action. It reveals a synthetic, non-personal six-row CSV with all headers and values visible in the interface, a direct CSV download link, and an explicit list of expected quality signals. The action that appears after sign-in sends this exact CSV content through `quality.importCsv`, which is the same protected mutation used by an uploaded CSV.
+
+The example-data contract, the quality engine, the protected router, OAuth redirect validation and navigation mappings passed in the local Vitest suite: 6 files and 14 tests. TypeScript validation and a production build with `VITE_API_URL=https://dataqualobs-vhblwvv4.manus.space` also passed. The final manual browser verification is intentionally outstanding: it requires the project owner to complete OAuth before an example run, its persistent history and its export can be observed from GitHub Pages.
